@@ -166,29 +166,27 @@ with tab_overview:
                         st.info("Nog geen spelers toegevoegd")
                 
                 with col2:
-                    new_player_name = st.text_input(
-                        "Nieuwe Speler", 
-                        key=f"new_player_input_{tournament.id}",
-                        label_visibility="visible"
-                    )
-                    
-                    col_btn1, col_btn2 = st.columns(2)
-                    with col_btn1:
-                        if st.button("➕ Toevoegen", key=f"add_player_{tournament.id}", use_container_width=True):
+                    # Use form to handle both button click and Enter key, and auto-clear input
+                    with st.form(key=f"add_player_form_{tournament.id}"):
+                        new_player_name = st.text_input(
+                            "Nieuwe Speler", 
+                            key=f"new_player_input_{tournament.id}",
+                            label_visibility="visible"
+                        )
+                        
+                        submitted = st.form_submit_button("➕ Toevoegen", use_container_width=True)
+                        
+                        if submitted:
                             if new_player_name.strip():
                                 try:
                                     player = Player.create_or_get_in_tournament(tournament.id, new_player_name.strip())
                                     st.success(f"✅ {player.name} toegevoegd!")
-                                    # Clear by rerunning - the key will reset
+                                    # Form will auto-clear on rerun
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"❌ Fout: {e}")
                             else:
                                 st.warning("Voer een naam in")
-                    
-                    # Also handle Enter key by using form
-                    with st.form(key=f"add_player_form_{tournament.id}"):
-                        st.form_submit_button(disabled=True, help="Gebruik de knop hierboven of druk Enter in het tekstveld")
                 
                 st.markdown("---")
                 
