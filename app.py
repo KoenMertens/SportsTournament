@@ -344,26 +344,75 @@ with tab_overview:
                         if unplayed:
                             st.markdown("#### Nog Te Spelen")
                             for match in unplayed:
+                                # Determine if it's table tennis (needs set scores)
+                                is_table_tennis = tournament.sport_type == "Tafeltennis"
+                                
                                 with st.expander(f"⚪ {match.team1.display_name} vs {match.team2.display_name}"):
-                                    col1, col2, col3, col4 = st.columns(4)
-                                    with col1:
-                                        st.write(f"**{match.team1.display_name}**")
-                                    with col2:
-                                        # Use current score or 0 if not set
-                                        current_score1 = match.team1_score if match.team1_score is not None else 0
-                                        score1 = st.number_input("Sets", min_value=0, key=f"score1_{match.id}", value=current_score1)
-                                    with col3:
-                                        st.write(f"**{match.team2.display_name}**")
-                                    with col4:
-                                        current_score2 = match.team2_score if match.team2_score is not None else 0
-                                        score2 = st.number_input("Sets", min_value=0, key=f"score2_{match.id}", value=current_score2)
-                                    
-                                    if st.button("💾 Opslaan", key=f"save_{match.id}"):
-                                        match.team1_score = score1
-                                        match.team2_score = score2
-                                        match.save()
-                                        st.success("✅ Match opgeslagen!")
-                                        st.rerun()
+                                    if is_table_tennis:
+                                        # Table tennis: per set scores (e.g., 11-9, 11-7, etc.)
+                                        st.markdown("**Sets invoeren (bijv. 11-9, 11-7, 9-11):**")
+                                        max_sets = 7  # Maximum sets for a match
+                                        
+                                        sets_to_enter = []
+                                        for i in range(max_sets):
+                                            col_set1, col_sep, col_set2 = st.columns([2, 1, 2])
+                                            with col_set1:
+                                                score1 = st.number_input(
+                                                    f"Set {i+1} - {match.team1.display_name}",
+                                                    min_value=0,
+                                                    max_value=20,
+                                                    key=f"set_{match.id}_{i}_1",
+                                                    value=match.sets[i][0] if i < len(match.sets) else 0
+                                                )
+                                            with col_sep:
+                                                st.markdown("**-**")
+                                            with col_set2:
+                                                score2 = st.number_input(
+                                                    f"Set {i+1} - {match.team2.display_name}",
+                                                    min_value=0,
+                                                    max_value=20,
+                                                    key=f"set_{match.id}_{i}_2",
+                                                    value=match.sets[i][1] if i < len(match.sets) else 0
+                                                )
+                                            
+                                            # Only add set if at least one score is > 0
+                                            if score1 > 0 or score2 > 0:
+                                                sets_to_enter.append((score1, score2))
+                                            elif i >= len(match.sets):
+                                                # Stop if we've reached the end of existing sets and no new score
+                                                break
+                                        
+                                        # Show calculated set wins
+                                        if sets_to_enter:
+                                            wins1 = sum(1 for s1, s2 in sets_to_enter if s1 > s2)
+                                            wins2 = sum(1 for s1, s2 in sets_to_enter if s2 > s1)
+                                            st.info(f"**Sets gewonnen:** {match.team1.display_name}: {wins1} - {match.team2.display_name}: {wins2}")
+                                        
+                                        if st.button("💾 Opslaan", key=f"save_{match.id}"):
+                                            match.sets = sets_to_enter
+                                            match.save()
+                                            st.success("✅ Match opgeslagen!")
+                                            st.rerun()
+                                    else:
+                                        # Padel or other: simple set count
+                                        col1, col2, col3, col4 = st.columns(4)
+                                        with col1:
+                                            st.write(f"**{match.team1.display_name}**")
+                                        with col2:
+                                            current_score1 = match.team1_score if match.team1_score is not None else 0
+                                            score1 = st.number_input("Sets gewonnen", min_value=0, key=f"score1_{match.id}", value=current_score1)
+                                        with col3:
+                                            st.write(f"**{match.team2.display_name}**")
+                                        with col4:
+                                            current_score2 = match.team2_score if match.team2_score is not None else 0
+                                            score2 = st.number_input("Sets gewonnen", min_value=0, key=f"score2_{match.id}", value=current_score2)
+                                        
+                                        if st.button("💾 Opslaan", key=f"save_{match.id}"):
+                                            match.team1_score = score1
+                                            match.team2_score = score2
+                                            match.save()
+                                            st.success("✅ Match opgeslagen!")
+                                            st.rerun()
                         
                         if played:
                             st.markdown("#### Gespeelde Matches (Aanpasbaar)")

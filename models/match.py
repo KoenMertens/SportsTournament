@@ -4,8 +4,9 @@ Match model - matches between teams
 from __future__ import annotations
 
 import sqlite3
+import json
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from enum import Enum
 from database import get_connection
 from .team import Team
@@ -25,6 +26,7 @@ class Match:
                  phase: MatchPhase = MatchPhase.POULE, poule_id: Optional[int] = None,
                  team1: Optional[Team] = None, team2: Optional[Team] = None,
                  team1_score: Optional[int] = None, team2_score: Optional[int] = None,
+                 sets: Optional[List[Tuple[int, int]]] = None,
                  played_at: Optional[datetime] = None):
         self.id = id
         self.tournament_id = tournament_id
@@ -32,13 +34,29 @@ class Match:
         self.poule_id = poule_id
         self.team1 = team1
         self.team2 = team2
-        self.team1_score = team1_score
-        self.team2_score = team2_score
+        self.team1_score = team1_score  # Number of sets won by team1
+        self.team2_score = team2_score  # Number of sets won by team2
+        self.sets = sets or []  # List of tuples: [(score1, score2), ...] for each set
         self.played_at = played_at
+    
+    def _calculate_set_wins(self):
+        """Calculate number of sets won by each team from sets list"""
+        if not self.sets:
+            return 0, 0
+        
+        wins1, wins2 = 0, 0
+        for score1, score2 in self.sets:
+            if score1 > score2:
+                wins1 += 1
+            elif score2 > score1:
+                wins2 += 1
+        return wins1, wins2
     
     @property
     def is_played(self) -> bool:
         """Check if match has been played"""
+        if self.sets:
+            return len(self.sets) > 0
         return self.team1_score is not None and self.team2_score is not None
     
     @property
@@ -46,6 +64,17 @@ class Match:
         """Get winning team (None if not played or tie)"""
         if not self.is_played:
             return None
+        
+        # Calculate wins from sets if available
+        if self.sets:
+            wins1, wins2 = self._calculate_set_wins()
+            if wins1 > wins2:
+                return self.team1
+            elif wins2 > wins1:
+                return self.team2
+            return None  # Tie
+        
+        # Fallback to old method
         if self.team1_score > self.team2_score:
             return self.team1
         elif self.team2_score > self.team1_score:
@@ -57,10 +86,12 @@ class Match:
         """Get losing team (None if not played or tie)"""
         if not self.is_played:
             return None
-        if self.team1_score < self.team2_score:
-            return self.team1
-        elif self.team2_score < self.team1_score:
+        
+        winner = self.winner
+        if winner == self.team1:
             return self.team2
+        elif winner == self.team2:
+            return self.team1
         return None  # Tie
     
     def save(self) -> int:
@@ -78,15 +109,24 @@ class Match:
         phase_str = self.phase.value
         played_at = self.played_at or (datetime.now() if self.is_played else None)
         
+        # Calculate set wins from sets if available
+        if self.sets:
+            wins1, wins2 = self._calculate_set_wins()
+            self.team1_score = wins1
+            self.team2_score = wins2
+        
+        # Serialize sets to JSON
+        sets_json = json.dumps(self.sets) if self.sets else None
+        
         if self.id:
             # Update existing
             c.execute('''
                 UPDATE matches
                 SET tournament_id = ?, phase = ?, poule_id = ?, 
-                    team1_id = ?, team2_id = ?, team1_score = ?, team2_score = ?, played_at = ?
+                    team1_id = ?, team2_id = ?, team1_score = ?, team2_score = ?, sets_json = ?, played_at = ?
                 WHERE id = ?
             ''', (self.tournament_id, phase_str, self.poule_id, self.team1.id, self.team2.id,
-                  self.team1_score, self.team2_score, played_at, self.id))
+                  self.team1_score, self.team2_score, sets_json, played_at, self.id))
             conn.commit()
             conn.close()
             return self.id
@@ -94,10 +134,10 @@ class Match:
             # Insert new
             c.execute('''
                 INSERT INTO matches 
-                (tournament_id, phase, poule_id, team1_id, team2_id, team1_score, team2_score, played_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (tournament_id, phase, poule_id, team1_id, team2_id, team1_score, team2_score, sets_json, played_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (self.tournament_id, phase_str, self.poule_id, self.team1.id, self.team2.id,
-                  self.team1_score, self.team2_score, played_at))
+                  self.team1_score, self.team2_score, sets_json, played_at))
             match_id = c.lastrowid
             conn.commit()
             conn.close()
@@ -111,7 +151,7 @@ class Match:
         c = conn.cursor()
         c.execute('''
             SELECT id, tournament_id, phase, poule_id, team1_id, team2_id, 
-                   team1_score, team2_score, played_at
+                   team1_score, team2_score, sets_json, played_at
             FROM matches
             WHERE id = ?
         ''', (match_id,))
@@ -121,11 +161,14 @@ class Match:
         if row:
             team1 = Team.get_by_id(row[4]) if row[4] else None
             team2 = Team.get_by_id(row[5]) if row[5] else None
-            played_at = datetime.fromisoformat(row[8]) if row[8] else None
+            sets_data = json.loads(row[8]) if row[8] else []
+            sets = [tuple(s) for s in sets_data] if sets_data else []
+            played_at = datetime.fromisoformat(row[9]) if row[9] else None
             
             return Match(
                 id=row[0], tournament_id=row[1], phase=MatchPhase(row[2]), poule_id=row[3],
-                team1=team1, team2=team2, team1_score=row[6], team2_score=row[7], played_at=played_at
+                team1=team1, team2=team2, team1_score=row[6], team2_score=row[7], 
+                sets=sets, played_at=played_at
             )
         return None
     
@@ -138,7 +181,7 @@ class Match:
         if phase:
             c.execute('''
                 SELECT id, tournament_id, phase, poule_id, team1_id, team2_id, 
-                       team1_score, team2_score, played_at
+                       team1_score, team2_score, sets_json, played_at
                 FROM matches
                 WHERE tournament_id = ? AND phase = ?
                 ORDER BY played_at DESC, id
@@ -146,7 +189,7 @@ class Match:
         else:
             c.execute('''
                 SELECT id, tournament_id, phase, poule_id, team1_id, team2_id, 
-                       team1_score, team2_score, played_at
+                       team1_score, team2_score, sets_json, played_at
                 FROM matches
                 WHERE tournament_id = ?
                 ORDER BY played_at DESC, id
@@ -159,11 +202,14 @@ class Match:
         for row in rows:
             team1 = Team.get_by_id(row[4]) if row[4] else None
             team2 = Team.get_by_id(row[5]) if row[5] else None
-            played_at = datetime.fromisoformat(row[8]) if row[8] else None
+            sets_data = json.loads(row[8]) if row[8] else []
+            sets = [tuple(s) for s in sets_data] if sets_data else []
+            played_at = datetime.fromisoformat(row[9]) if row[9] else None
             
             matches.append(Match(
                 id=row[0], tournament_id=row[1], phase=MatchPhase(row[2]), poule_id=row[3],
-                team1=team1, team2=team2, team1_score=row[6], team2_score=row[7], played_at=played_at
+                team1=team1, team2=team2, team1_score=row[6], team2_score=row[7], 
+                sets=sets, played_at=played_at
             ))
         
         return matches

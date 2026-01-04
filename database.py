@@ -115,6 +115,7 @@ def init_db():
             team2_id INTEGER NOT NULL,
             team1_score INTEGER,
             team2_score INTEGER,
+            sets_json TEXT,
             played_at TIMESTAMP,
             FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
             FOREIGN KEY (poule_id) REFERENCES poules(id),
@@ -122,6 +123,16 @@ def init_db():
             FOREIGN KEY (team2_id) REFERENCES teams(id)
         )
     ''')
+    
+    # Migrate existing matches table if needed (add sets_json column)
+    try:
+        c.execute("SELECT sets_json FROM matches LIMIT 1")
+    except sqlite3.OperationalError:
+        try:
+            c.execute('ALTER TABLE matches ADD COLUMN sets_json TEXT')
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column might already exist
     
     conn.commit()
     conn.close()
