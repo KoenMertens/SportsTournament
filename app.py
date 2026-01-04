@@ -149,7 +149,7 @@ with tab_overview:
                     if players:
                         st.markdown("**Bestaande Spelers:**")
                         player_df = pd.DataFrame([{"Naam": p.name} for p in players])
-                        st.dataframe(player_df, use_container_width=True, hide_index=True, use_container_width=True)
+                        st.dataframe(player_df, use_container_width=True, hide_index=True)
                     else:
                         st.info("Nog geen spelers toegevoegd")
                 
