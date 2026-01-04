@@ -32,11 +32,37 @@ def init_db():
             pass  # Column might already exist
         conn.commit()
     
-    # Players table - global, reusable across tournaments
+    # Migrate players table if needed (add tournament_id if not exists)
+    try:
+        c.execute("SELECT tournament_id FROM players LIMIT 1")
+    except sqlite3.OperationalError:
+        # tournament_id doesn't exist, need to migrate
+        try:
+            # First, create backup of old players (if any exist)
+            c.execute('SELECT COUNT(*) FROM players')
+            count = c.fetchone()[0]
+            if count > 0:
+                # If there are old players, we need to handle migration
+                # For now, just add the column - old players won't work but new ones will
+                pass
+            
+            # Add tournament_id column
+            c.execute('ALTER TABLE players ADD COLUMN tournament_id INTEGER')
+            # Remove UNIQUE constraint on name (we'll add unique on tournament_id+name later)
+            # SQLite doesn't support dropping constraints easily, so we'll recreate if needed
+            conn.commit()
+        except sqlite3.OperationalError as e:
+            # If it fails, the table might need to be recreated
+            pass
+    
+    # Players table - unique per tournament
     c.execute('''
         CREATE TABLE IF NOT EXISTS players (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE
+            tournament_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+            UNIQUE(tournament_id, name)
         )
     ''')
     

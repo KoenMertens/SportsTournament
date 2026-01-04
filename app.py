@@ -28,47 +28,10 @@ init_db()
 st.title("🏆 Toernooi Beheer Systeem")
 st.markdown("Tafeltennis & Padel Toernooien")
 
-# Navigation at the top
-st.markdown("---")
-page = st.selectbox("📋 Navigatie", [
-    "Toernooien Overzicht",
-    "Nieuw Toernooi",
-    "Spelers Beheer"
-], key="main_navigation")
-st.markdown("---")
+# Navigation tabs at the top
+tab_overview, tab_new = st.tabs(["📋 Toernooien", "➕ Nieuw Toernooi"])
 
-if page == "Spelers Beheer":
-    st.subheader("👥 Spelers Beheer")
-    st.markdown("Globale spelers database - spelers kunnen gebruikt worden in meerdere toernooien")
-    
-    # List all players
-    players = Player.get_all()
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("### Beschikbare Spelers")
-        if players:
-            player_df = pd.DataFrame([{"Naam": p.name, "ID": p.id} for p in players])
-            st.dataframe(player_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("Nog geen spelers toegevoegd")
-    
-    with col2:
-        st.markdown("### Nieuwe Speler")
-        new_player_name = st.text_input("Speler Naam", key="new_player")
-        if st.button("Speler Toevoegen", type="primary"):
-            if new_player_name.strip():
-                try:
-                    player = Player.create_or_get(new_player_name.strip())
-                    st.success(f"Speler '{player.name}' toegevoegd/beschikbaar! (ID: {player.id})")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Fout bij toevoegen: {e}")
-            else:
-                st.warning("Voer een naam in")
-
-elif page == "Nieuw Toernooi":
+with tab_new:
     st.subheader("➕ Nieuw Toernooi Aanmaken")
     
     with st.form("create_tournament"):
@@ -117,7 +80,12 @@ elif page == "Nieuw Toernooi":
                     
                     tournament.save()
                     st.success(f"✅ Toernooi '{tournament.name}' aangemaakt!")
-                    st.info("Ga naar 'Toernooien Overzicht' om teams en spelers toe te voegen.")
+                    
+                    # Store tournament ID to auto-select it
+                    if 'created_tournament_id' not in st.session_state:
+                        st.session_state.created_tournament_id = tournament.id
+                    
+                    st.info("💡 Voeg nu teams/spelers toe in het 'Toernooien' tabblad.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Fout bij aanmaken: {str(e)}")
@@ -125,7 +93,7 @@ elif page == "Nieuw Toernooi":
                     with st.expander("🔍 Details"):
                         st.code(traceback.format_exc())
 
-elif page == "Toernooien Overzicht":
+with tab_overview:
     st.subheader("📋 Toernooien Overzicht")
     
     tournaments = Tournament.get_all()
@@ -133,11 +101,24 @@ elif page == "Toernooien Overzicht":
     if not tournaments:
         st.info("Nog geen toernooien. Maak er een aan via 'Nieuw Toernooi'.")
     else:
-        # Tournament selector
+        # Tournament selector - auto-select newly created tournament
         tournament_options = {f"{t.name} ({t.sport_type})": t for t in tournaments}
+        default_idx = 0
+        
+        if 'created_tournament_id' in st.session_state:
+            # Find index of newly created tournament
+            for idx, (name, t) in enumerate(tournament_options.items()):
+                if t.id == st.session_state.created_tournament_id:
+                    default_idx = idx
+                    break
+            # Clear it after use
+            if 'created_tournament_id' in st.session_state:
+                del st.session_state.created_tournament_id
+        
         selected_tournament_name = st.selectbox(
             "Selecteer Toernooi",
-            list(tournament_options.keys())
+            list(tournament_options.keys()),
+            index=default_idx
         )
         
         if selected_tournament_name:
@@ -153,45 +134,69 @@ elif page == "Toernooien Overzicht":
                 st.metric("Type", "Default" if tournament.tournament_type == "default_tournament" else "Round-Robin")
             
             # Tabs for different views
-            tab1, tab2, tab3, tab4 = st.tabs(["Teams", "Standen", "Matches", "Instellingen"])
+            tab_teams, tab_standings, tab_matches, tab_settings = st.tabs(["👥 Teams & Spelers", "📊 Standen", "🎯 Matches", "⚙️ Instellingen"])
             
-            with tab1:
-                st.markdown("### Teams Beheer")
+            with tab_teams:
+                st.markdown("### Teams & Spelers Beheer")
                 teams = tournament.get_teams()
+                players = Player.get_by_tournament(tournament.id)
                 
-                if not teams:
-                    st.info("Nog geen teams toegevoegd aan dit toernooi")
-                    
-                    # Add teams section
-                    st.markdown("#### Teams Toevoegen")
-                    players = Player.get_all()
-                    
-                    if not players:
-                        st.warning("Voeg eerst spelers toe via 'Spelers Beheer'")
+                # Players section
+                st.markdown("#### 👥 Spelers Toevoegen")
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    if players:
+                        st.markdown("**Bestaande Spelers:**")
+                        player_df = pd.DataFrame([{"Naam": p.name} for p in players])
+                        st.dataframe(player_df, use_container_width=True, hide_index=True, use_container_width=True)
                     else:
+                        st.info("Nog geen spelers toegevoegd")
+                
+                with col2:
+                    new_player_name = st.text_input("Nieuwe Speler", key=f"new_player_{tournament.id}")
+                    if st.button("➕ Toevoegen", key=f"add_player_{tournament.id}"):
+                        if new_player_name.strip():
+                            try:
+                                player = Player.create_or_get_in_tournament(tournament.id, new_player_name.strip())
+                                st.success(f"✅ {player.name} toegevoegd!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Fout: {e}")
+                        else:
+                            st.warning("Voer een naam in")
+                
+                st.markdown("---")
+                
+                # Teams section
+                if not players:
+                    st.warning("⚠️ Voeg eerst spelers toe voordat je teams maakt")
+                elif len(players) < 3 and tournament.tournament_type == "default_tournament":
+                    st.warning(f"⚠️ Minimaal 3 spelers nodig voor toernooi. Huidig: {len(players)}")
+                else:
+                    st.markdown("#### 🏃 Teams")
+                    
+                    if not teams:
+                        st.info("Nog geen teams aangemaakt")
+                        
                         if tournament.team_type == "single":
                             # Single: each player is a team
-                            st.markdown("**Enkelspel**: Elke speler is automatisch een team")
-                            selected_players = st.multiselect(
-                                "Selecteer Spelers",
-                                [p.name for p in players],
-                                key=f"select_players_{tournament.id}"
-                            )
-                            
-                            if st.button("Teams Aanmaken", key=f"create_teams_single_{tournament.id}"):
-                                if len(selected_players) >= 3:
-                                    for player_name in selected_players:
-                                        player = Player.find_by_name(player_name)
-                                        if player:
+                            st.markdown("**Enkelspel**: Elke speler wordt automatisch een team")
+                            if len(players) >= 3:
+                                if st.button("🚀 Teams Aanmaken (alle spelers)", type="primary", key=f"create_all_teams_{tournament.id}"):
+                                    try:
+                                        for player in players:
                                             team = Team(
                                                 tournament_id=tournament.id,
                                                 player1=player
                                             )
                                             team.save()
-                                    st.success(f"{len(selected_players)} teams aangemaakt!")
-                                    st.rerun()
-                                else:
-                                    st.error("Selecteer minimaal 3 spelers")
+                                        st.success(f"✅ {len(players)} teams aangemaakt!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"❌ Fout: {e}")
+                            else:
+                                st.error(f"❌ Minimaal 3 spelers nodig, huidig: {len(players)}")
                         
                         else:
                             # Double: need 2 players per team
@@ -216,9 +221,9 @@ elif page == "Toernooien Overzicht":
                                         key=f"team_p2_{tournament.id}"
                                     )
                                 
-                                if st.button("Team Toevoegen", key=f"add_team_double_{tournament.id}"):
-                                    p1 = Player.find_by_name(player1_name)
-                                    p2 = Player.find_by_name(player2_name)
+                                if st.button("➕ Team Toevoegen", key=f"add_team_double_{tournament.id}"):
+                                    p1 = Player.find_by_name_in_tournament(tournament.id, player1_name)
+                                    p2 = Player.find_by_name_in_tournament(tournament.id, player2_name)
                                     if p1 and p2:
                                         team = Team(
                                             tournament_id=tournament.id,
@@ -226,40 +231,35 @@ elif page == "Toernooien Overzicht":
                                             player2=p2
                                         )
                                         team.save()
-                                        st.success(f"Team '{team.display_name}' toegevoegd!")
+                                        st.success(f"✅ Team '{team.display_name}' toegevoegd!")
                                         st.rerun()
-                                    
-                                # Show existing teams
-                                if teams:
-                                    st.markdown("**Bestaande Teams:**")
-                                    for team in teams:
-                                        st.write(f"- {team.display_name}")
-                else:
-                    st.markdown(f"**{len(teams)} teams in dit toernooi:**")
-                    team_list = [{"Team": t.display_name, "Type": "Dubbel" if t.is_double else "Enkel"} for t in teams]
-                    st.dataframe(pd.DataFrame(team_list), use_container_width=True, hide_index=True)
                     
-                    # Generate matches button (only if tournament type supports it)
-                    if tournament.tournament_type == "default_tournament":
-                        if len(teams) >= 3:
-                            matches = tournament.get_matches()
-                            if not matches:
-                                if st.button("🎯 Poule Matches Genereren", type="primary", key=f"gen_matches_{tournament.id}"):
-                                    try:
-                                        generated = tournament.generate_matches()
-                                        st.success(f"{len(generated)} matches gegenereerd!")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Fout: {e}")
-                            else:
-                                st.info(f"Er zijn al {len(matches)} matches voor dit toernooi")
+                    if teams:
+                        st.markdown(f"**{len(teams)} teams aangemaakt:**")
+                        team_list = [{"Team": t.display_name, "Type": "Dubbel" if t.is_double else "Enkel"} for t in teams]
+                        st.dataframe(pd.DataFrame(team_list), use_container_width=True, hide_index=True)
+                        
+                        # Generate matches button (only if tournament type supports it)
+                        if tournament.tournament_type == "default_tournament":
+                            if len(teams) >= 3:
+                                matches = tournament.get_matches()
+                                if not matches:
+                                    if st.button("🎯 Poule Matches Genereren", type="primary", key=f"gen_matches_{tournament.id}"):
+                                        try:
+                                            generated = tournament.generate_matches()
+                                            st.success(f"✅ {len(generated)} matches gegenereerd!")
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"❌ Fout: {e}")
+                                else:
+                                    st.info(f"ℹ️ Er zijn al {len(matches)} matches voor dit toernooi")
             
-            with tab2:
-                st.markdown("### Standen")
+            with tab_standings:
+                st.markdown("### 📊 Standen")
                 matches = tournament.get_matches()
                 
                 if not matches:
-                    st.info("Genereer eerst matches via het Teams tabblad")
+                    st.info("Genereer eerst matches via het 'Teams & Spelers' tabblad")
                 else:
                     phase = st.selectbox(
                         "Selecteer Fase",
@@ -273,12 +273,12 @@ elif page == "Toernooien Overzicht":
                     else:
                         st.info("Geen standen beschikbaar voor deze fase")
             
-            with tab3:
-                st.markdown("### Matches Invoeren")
+            with tab_matches:
+                st.markdown("### 🎯 Matches Invoeren")
                 matches = tournament.get_matches()
                 
                 if not matches:
-                    st.info("Genereer eerst matches via het Teams tabblad")
+                    st.info("Genereer eerst matches via het 'Teams & Spelers' tabblad")
                 else:
                     # Filter matches by phase
                     phase = st.selectbox(
@@ -310,11 +310,11 @@ elif page == "Toernooien Overzicht":
                                     with col4:
                                         score2 = st.number_input("Sets", min_value=0, key=f"score2_{match.id}", value=0)
                                     
-                                    if st.button("Opslaan", key=f"save_{match.id}"):
+                                    if st.button("💾 Opslaan", key=f"save_{match.id}"):
                                         match.team1_score = score1
                                         match.team2_score = score2
                                         match.save()
-                                        st.success("Match opgeslagen!")
+                                        st.success("✅ Match opgeslagen!")
                                         st.rerun()
                         
                         if played:
@@ -339,17 +339,18 @@ elif page == "Toernooien Overzicht":
                                 if st.button("🎯 Knockout Bracket Genereren", type="primary", key=f"gen_knockout_{tournament.id}"):
                                     try:
                                         generated = tournament.generate_knockout_matches()
-                                        st.success(f"Knockout bracket gegenereerd! ({len(generated)} matches)")
+                                        st.success(f"✅ Knockout bracket gegenereerd! ({len(generated)} matches)")
                                         st.rerun()
                                     except Exception as e:
-                                        st.error(f"Fout: {e}")
+                                        st.error(f"❌ Fout: {e}")
                             else:
-                                st.info("Speel eerst alle poule matches voordat je knockout bracket genereert")
+                                st.info("ℹ️ Speel eerst alle poule matches voordat je knockout bracket genereert")
             
-            with tab4:
-                st.markdown("### Toernooi Instellingen")
+            with tab_settings:
+                st.markdown("### ⚙️ Toernooi Instellingen")
                 st.write(f"**Naam:** {tournament.name}")
                 st.write(f"**Sport:** {tournament.sport_type}")
                 st.write(f"**Type:** {tournament.tournament_type}")
                 st.write(f"**Team Type:** {tournament.team_type}")
+                st.write(f"**Troostfinale:** {'Ja' if tournament.has_consolation else 'Nee'}")
                 st.write(f"**Aangemaakt:** {tournament.created_at}")
