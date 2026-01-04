@@ -417,34 +417,99 @@ with tab_overview:
                         if played:
                             st.markdown("#### Gespeelde Matches (Aanpasbaar)")
                             for match in played:
-                                with st.expander(f"✅ {match.team1.display_name} vs {match.team2.display_name} - {match.team1_score}-{match.team2_score}"):
-                                    col1, col2, col3, col4 = st.columns(4)
-                                    with col1:
-                                        st.write(f"**{match.team1.display_name}**")
-                                    with col2:
-                                        current_score1 = match.team1_score if match.team1_score is not None else 0
-                                        score1 = st.number_input("Sets", min_value=0, key=f"edit_score1_{match.id}", value=current_score1)
-                                    with col3:
-                                        st.write(f"**{match.team2.display_name}**")
-                                    with col4:
-                                        current_score2 = match.team2_score if match.team2_score is not None else 0
-                                        score2 = st.number_input("Sets", min_value=0, key=f"edit_score2_{match.id}", value=current_score2)
+                                # Show match result
+                                if match.sets:
+                                    sets_str = ", ".join([f"{s1}-{s2}" for s1, s2 in match.sets])
+                                    wins1, wins2 = match._calculate_set_wins()
+                                    title = f"✅ {match.team1.display_name} vs {match.team2.display_name} - Sets: {sets_str} ({wins1}-{wins2})"
+                                else:
+                                    title = f"✅ {match.team1.display_name} vs {match.team2.display_name} - {match.team1_score}-{match.team2_score}"
+                                
+                                with st.expander(title):
+                                    is_table_tennis = tournament.sport_type == "Tafeltennis"
                                     
-                                    col_save, col_delete = st.columns(2)
-                                    with col_save:
-                                        if st.button("💾 Opslaan", key=f"update_{match.id}"):
-                                            match.team1_score = score1
-                                            match.team2_score = score2
-                                            match.save()
-                                            st.success("✅ Match bijgewerkt!")
-                                            st.rerun()
-                                    with col_delete:
-                                        if st.button("🗑️ Score Verwijderen", key=f"clear_{match.id}"):
-                                            match.team1_score = None
-                                            match.team2_score = None
-                                            match.save()
-                                            st.success("✅ Score verwijderd!")
-                                            st.rerun()
+                                    if is_table_tennis and match.sets:
+                                        # Table tennis: edit sets
+                                        st.markdown("**Sets bewerken:**")
+                                        max_sets = 7
+                                        
+                                        sets_to_enter = []
+                                        for i in range(max_sets):
+                                            col_set1, col_sep, col_set2 = st.columns([2, 1, 2])
+                                            with col_set1:
+                                                score1 = st.number_input(
+                                                    f"Set {i+1} - {match.team1.display_name}",
+                                                    min_value=0,
+                                                    max_value=20,
+                                                    key=f"edit_set_{match.id}_{i}_1",
+                                                    value=match.sets[i][0] if i < len(match.sets) else 0
+                                                )
+                                            with col_sep:
+                                                st.markdown("**-**")
+                                            with col_set2:
+                                                score2 = st.number_input(
+                                                    f"Set {i+1} - {match.team2.display_name}",
+                                                    min_value=0,
+                                                    max_value=20,
+                                                    key=f"edit_set_{match.id}_{i}_2",
+                                                    value=match.sets[i][1] if i < len(match.sets) else 0
+                                                )
+                                            
+                                            if score1 > 0 or score2 > 0:
+                                                sets_to_enter.append((score1, score2))
+                                            elif i >= len(match.sets):
+                                                break
+                                        
+                                        if sets_to_enter:
+                                            wins1 = sum(1 for s1, s2 in sets_to_enter if s1 > s2)
+                                            wins2 = sum(1 for s1, s2 in sets_to_enter if s2 > s1)
+                                            st.info(f"**Sets gewonnen:** {match.team1.display_name}: {wins1} - {match.team2.display_name}: {wins2}")
+                                        
+                                        col_save, col_delete = st.columns(2)
+                                        with col_save:
+                                            if st.button("💾 Opslaan", key=f"update_{match.id}"):
+                                                match.sets = sets_to_enter
+                                                match.save()
+                                                st.success("✅ Match bijgewerkt!")
+                                                st.rerun()
+                                        with col_delete:
+                                            if st.button("🗑️ Score Verwijderen", key=f"clear_{match.id}"):
+                                                match.sets = []
+                                                match.team1_score = None
+                                                match.team2_score = None
+                                                match.save()
+                                                st.success("✅ Score verwijderd!")
+                                                st.rerun()
+                                    else:
+                                        # Padel or old format: edit set count
+                                        col1, col2, col3, col4 = st.columns(4)
+                                        with col1:
+                                            st.write(f"**{match.team1.display_name}**")
+                                        with col2:
+                                            current_score1 = match.team1_score if match.team1_score is not None else 0
+                                            score1 = st.number_input("Sets gewonnen", min_value=0, key=f"edit_score1_{match.id}", value=current_score1)
+                                        with col3:
+                                            st.write(f"**{match.team2.display_name}**")
+                                        with col4:
+                                            current_score2 = match.team2_score if match.team2_score is not None else 0
+                                            score2 = st.number_input("Sets gewonnen", min_value=0, key=f"edit_score2_{match.id}", value=current_score2)
+                                        
+                                        col_save, col_delete = st.columns(2)
+                                        with col_save:
+                                            if st.button("💾 Opslaan", key=f"update_{match.id}"):
+                                                match.team1_score = score1
+                                                match.team2_score = score2
+                                                match.save()
+                                                st.success("✅ Match bijgewerkt!")
+                                                st.rerun()
+                                        with col_delete:
+                                            if st.button("🗑️ Score Verwijderen", key=f"clear_{match.id}"):
+                                                match.sets = []
+                                                match.team1_score = None
+                                                match.team2_score = None
+                                                match.save()
+                                                st.success("✅ Score verwijderd!")
+                                                st.rerun()
                     
                     # Generate knockout bracket button (for default tournament)
                     if (tournament.tournament_type == "default_tournament" and 
