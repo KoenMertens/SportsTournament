@@ -290,10 +290,33 @@ with tab_overview:
                     )
                     
                     standings = tournament.get_standings(phase=phase)
-                    if not standings.empty:
-                        st.dataframe(standings, use_container_width=True)
+                    
+                    if phase == "poule" and tournament.tournament_type == "default_tournament":
+                        # Show standings per poule
+                        if not standings.empty and "Poule" in standings.columns:
+                            # Group by poule
+                            poules = standings["Poule"].unique()
+                            poules_sorted = sorted(poules)
+                            
+                            for poule_name in poules_sorted:
+                                poule_data = standings[standings["Poule"] == poule_name].copy()
+                                # Remove Poule column for display
+                                poule_display = poule_data.drop(columns=["Poule"])
+                                
+                                st.markdown(f"#### 📋 Poule {poule_name}")
+                                st.dataframe(poule_display, use_container_width=True, hide_index=True)
+                                st.markdown("---")
+                        elif standings.empty:
+                            st.info("Geen standen beschikbaar voor poule fase")
+                        else:
+                            # Fallback if structure is different
+                            st.dataframe(standings, use_container_width=True)
                     else:
-                        st.info("Geen standen beschikbaar voor deze fase")
+                        # For knockout/consolation or round-robin, show all standings
+                        if not standings.empty:
+                            st.dataframe(standings, use_container_width=True)
+                        else:
+                            st.info("Geen standen beschikbaar voor deze fase")
             
             with tab_matches:
                 st.markdown("### 🎯 Matches Invoeren")
