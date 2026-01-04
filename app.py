@@ -29,6 +29,7 @@ st.title("🏆 Toernooi Beheer Systeem")
 st.markdown("Tafeltennis & Padel Toernooien")
 
 # Navigation tabs at the top
+# Note: st.tabs doesn't support programmatic selection, but we'll use session_state to track
 tab_overview, tab_new = st.tabs(["📋 Toernooien", "➕ Nieuw Toernooi"])
 
 with tab_new:
@@ -82,10 +83,11 @@ with tab_new:
                     st.success(f"✅ Toernooi '{tournament.name}' aangemaakt!")
                     
                     # Store tournament ID to auto-select it
-                    if 'created_tournament_id' not in st.session_state:
-                        st.session_state.created_tournament_id = tournament.id
+                    st.session_state.created_tournament_id = tournament.id
                     
-                    st.info("💡 Voeg nu teams/spelers toe in het 'Toernooien' tabblad.")
+                    # Show message and redirect instruction
+                    st.info("💡 Ga naar het '📋 Toernooien' tabblad om teams/spelers toe te voegen.")
+                    st.balloons()  # Celebration!
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Fout bij aanmaken: {str(e)}")
@@ -154,12 +156,23 @@ with tab_overview:
                         st.info("Nog geen spelers toegevoegd")
                 
                 with col2:
-                    new_player_name = st.text_input("Nieuwe Speler", key=f"new_player_{tournament.id}")
+                    # Use session state to clear text input after adding player
+                    if f'new_player_name_{tournament.id}' not in st.session_state:
+                        st.session_state[f'new_player_name_{tournament.id}'] = ""
+                    
+                    new_player_name = st.text_input(
+                        "Nieuwe Speler", 
+                        key=f"new_player_input_{tournament.id}",
+                        value=st.session_state[f'new_player_name_{tournament.id}']
+                    )
+                    
                     if st.button("➕ Toevoegen", key=f"add_player_{tournament.id}"):
                         if new_player_name.strip():
                             try:
                                 player = Player.create_or_get_in_tournament(tournament.id, new_player_name.strip())
                                 st.success(f"✅ {player.name} toegevoegd!")
+                                # Clear the text input
+                                st.session_state[f'new_player_name_{tournament.id}'] = ""
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Fout: {e}")
