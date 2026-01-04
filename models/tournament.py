@@ -3,12 +3,9 @@ Tournament base class - abstract base for different tournament types
 """
 import sqlite3
 from abc import ABC, abstractmethod
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List
 from database import get_connection
 from .team import Team
-
-if TYPE_CHECKING:
-    from .match import Match, MatchPhase
 
 
 class Tournament(ABC):
@@ -138,7 +135,7 @@ class Tournament(ABC):
         return Match.get_by_tournament(self.id, phase_enum)
     
     @abstractmethod
-    def generate_matches(self, teams_per_poule: int = 4) -> List[Match]:
+    def generate_matches(self, teams_per_poule: int = 4):
         """
         Generate all matches for this tournament type.
         Must be implemented by subclasses.

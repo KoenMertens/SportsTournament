@@ -15,7 +15,7 @@ class RoundRobinTournament(Tournament):
                  team_type="single", has_consolation=False, created_at=None):
         super().__init__(id, name, sport_type, tournament_type, team_type, has_consolation, created_at)
     
-    def generate_matches(self, teams_per_poule: int = 4) -> List[Match]:
+    def generate_matches(self, teams_per_poule: int = 4):
         """
         Generate all matches for round-robin (everyone vs everyone, no poules)
         teams_per_poule parameter is ignored for round-robin

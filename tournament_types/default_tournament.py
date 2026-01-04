@@ -24,7 +24,7 @@ class DefaultTournament(Tournament):
                  team_type="single", has_consolation=False, created_at=None):
         super().__init__(id, name, sport_type, tournament_type, team_type, has_consolation, created_at)
     
-    def generate_matches(self, teams_per_poule: int = 4) -> List[Match]:
+    def generate_matches(self, teams_per_poule: int = 4):
         """
         Generate matches for default tournament:
         1. Create poules and distribute teams (4 per poule, remainder 3)
