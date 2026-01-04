@@ -139,12 +139,16 @@ def generate_knockout_bracket(tournament_id: int, qualified_teams: List[Tuple[Te
     matches = []
     
     # Group teams by poule
+    # qualified_teams is List[Tuple[Team, str, TeamStats]] - (team, poule_name, stats)
     poule_groups: Dict[str, List[Tuple[Team, int]]] = {}  # poule_name -> [(team, rank_in_poule)]
-    for idx, (team, poule_name) in enumerate(qualified_teams):
+    # Track rank within each poule
+    poule_ranks: Dict[str, int] = defaultdict(int)
+    for team, poule_name, stats in qualified_teams:
         if poule_name not in poule_groups:
             poule_groups[poule_name] = []
-        # Rank in poule: first 2 are rank 1, next 2 are rank 2, etc.
-        rank = (idx % 2) + 1  # Simplified: assume sorted by poule
+        # Track rank: first team from poule is rank 1, second is rank 2
+        poule_ranks[poule_name] += 1
+        rank = poule_ranks[poule_name]
         poule_groups[poule_name].append((team, rank))
     
     # Track teams by poule (with their rank: 1st or 2nd in poule)

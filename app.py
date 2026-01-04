@@ -163,28 +163,29 @@ with tab_overview:
                         st.info("Nog geen spelers toegevoegd")
                 
                 with col2:
-                    # Use session state to clear text input after adding player
-                    if f'new_player_name_{tournament.id}' not in st.session_state:
-                        st.session_state[f'new_player_name_{tournament.id}'] = ""
-                    
                     new_player_name = st.text_input(
                         "Nieuwe Speler", 
                         key=f"new_player_input_{tournament.id}",
-                        value=st.session_state[f'new_player_name_{tournament.id}']
+                        label_visibility="visible"
                     )
                     
-                    if st.button("➕ Toevoegen", key=f"add_player_{tournament.id}"):
-                        if new_player_name.strip():
-                            try:
-                                player = Player.create_or_get_in_tournament(tournament.id, new_player_name.strip())
-                                st.success(f"✅ {player.name} toegevoegd!")
-                                # Clear the text input
-                                st.session_state[f'new_player_name_{tournament.id}'] = ""
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"❌ Fout: {e}")
-                        else:
-                            st.warning("Voer een naam in")
+                    col_btn1, col_btn2 = st.columns(2)
+                    with col_btn1:
+                        if st.button("➕ Toevoegen", key=f"add_player_{tournament.id}", use_container_width=True):
+                            if new_player_name.strip():
+                                try:
+                                    player = Player.create_or_get_in_tournament(tournament.id, new_player_name.strip())
+                                    st.success(f"✅ {player.name} toegevoegd!")
+                                    # Clear by rerunning - the key will reset
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Fout: {e}")
+                            else:
+                                st.warning("Voer een naam in")
+                    
+                    # Also handle Enter key by using form
+                    with st.form(key=f"add_player_form_{tournament.id}"):
+                        st.form_submit_button(disabled=True, help="Gebruik de knop hierboven of druk Enter in het tekstveld")
                 
                 st.markdown("---")
                 
@@ -341,8 +342,8 @@ with tab_overview:
                             st.markdown("#### Gespeelde Matches")
                             played_data = [{
                                 "Team 1": m.team1.display_name,
-                                "Score": f"{m.team1_score}-{m.team2_score}",
                                 "Team 2": m.team2.display_name,
+                                "Score": f"{m.team1_score}-{m.team2_score}",
                                 "Winnaar": m.winner.display_name if m.winner else "Gelijk"
                             } for m in played]
                             st.dataframe(pd.DataFrame(played_data), use_container_width=True, hide_index=True)
