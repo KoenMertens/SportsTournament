@@ -28,30 +28,14 @@ init_db()
 st.title("🏆 Toernooi Beheer Systeem")
 st.markdown("Tafeltennis & Padel Toernooien")
 
-# Navigation tabs at the top
-page = st.tabs(["📋 Toernooien Overzicht", "➕ Nieuw Toernooi", "👥 Spelers Beheer"])
-page_selected = None
-
-# Determine which tab is active based on URL or default
-if 'page' not in st.session_state:
-    st.session_state.page = 0
-
-# Create tab content
-with page[0]:
-    page_selected = "Toernooien Overzicht"
-with page[1]:
-    page_selected = "Nieuw Toernooi"
-with page[2]:
-    page_selected = "Spelers Beheer"
-
-# Use selectbox as fallback to determine active page
-# Actually, let's use a simpler approach with selectbox at top
+# Navigation at the top
 st.markdown("---")
-page = st.selectbox("Menu", [
+page = st.selectbox("📋 Navigatie", [
     "Toernooien Overzicht",
     "Nieuw Toernooi",
     "Spelers Beheer"
-], key="main_nav")
+], key="main_navigation")
+st.markdown("---")
 
 if page == "Spelers Beheer":
     st.subheader("👥 Spelers Beheer")
