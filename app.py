@@ -29,7 +29,14 @@ st.title("🏆 Toernooi Beheer Systeem")
 st.markdown("Tafeltennis & Padel Toernooien")
 
 # Navigation tabs at the top
-# Note: st.tabs doesn't support programmatic selection, but we'll use session_state to track
+# Use query params or session state to handle tab switching
+if 'current_tab' not in st.session_state:
+    st.session_state.current_tab = "overview"
+
+# If tournament was just created, switch to overview
+if 'created_tournament_id' in st.session_state:
+    st.session_state.current_tab = "overview"
+
 tab_overview, tab_new = st.tabs(["📋 Toernooien", "➕ Nieuw Toernooi"])
 
 with tab_new:
