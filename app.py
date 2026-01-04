@@ -326,11 +326,14 @@ with tab_overview:
                                     with col1:
                                         st.write(f"**{match.team1.display_name}**")
                                     with col2:
-                                        score1 = st.number_input("Sets", min_value=0, key=f"score1_{match.id}", value=0)
+                                        # Use current score or 0 if not set
+                                        current_score1 = match.team1_score if match.team1_score is not None else 0
+                                        score1 = st.number_input("Sets", min_value=0, key=f"score1_{match.id}", value=current_score1)
                                     with col3:
                                         st.write(f"**{match.team2.display_name}**")
                                     with col4:
-                                        score2 = st.number_input("Sets", min_value=0, key=f"score2_{match.id}", value=0)
+                                        current_score2 = match.team2_score if match.team2_score is not None else 0
+                                        score2 = st.number_input("Sets", min_value=0, key=f"score2_{match.id}", value=current_score2)
                                     
                                     if st.button("💾 Opslaan", key=f"save_{match.id}"):
                                         match.team1_score = score1
@@ -340,14 +343,36 @@ with tab_overview:
                                         st.rerun()
                         
                         if played:
-                            st.markdown("#### Gespeelde Matches")
-                            played_data = [{
-                                "Team 1": m.team1.display_name,
-                                "Team 2": m.team2.display_name,
-                                "Score": f"{m.team1_score}-{m.team2_score}",
-                                "Winnaar": m.winner.display_name if m.winner else "Gelijk"
-                            } for m in played]
-                            st.dataframe(pd.DataFrame(played_data), use_container_width=True, hide_index=True)
+                            st.markdown("#### Gespeelde Matches (Aanpasbaar)")
+                            for match in played:
+                                with st.expander(f"✅ {match.team1.display_name} vs {match.team2.display_name} - {match.team1_score}-{match.team2_score}"):
+                                    col1, col2, col3, col4 = st.columns(4)
+                                    with col1:
+                                        st.write(f"**{match.team1.display_name}**")
+                                    with col2:
+                                        current_score1 = match.team1_score if match.team1_score is not None else 0
+                                        score1 = st.number_input("Sets", min_value=0, key=f"edit_score1_{match.id}", value=current_score1)
+                                    with col3:
+                                        st.write(f"**{match.team2.display_name}**")
+                                    with col4:
+                                        current_score2 = match.team2_score if match.team2_score is not None else 0
+                                        score2 = st.number_input("Sets", min_value=0, key=f"edit_score2_{match.id}", value=current_score2)
+                                    
+                                    col_save, col_delete = st.columns(2)
+                                    with col_save:
+                                        if st.button("💾 Opslaan", key=f"update_{match.id}"):
+                                            match.team1_score = score1
+                                            match.team2_score = score2
+                                            match.save()
+                                            st.success("✅ Match bijgewerkt!")
+                                            st.rerun()
+                                    with col_delete:
+                                        if st.button("🗑️ Score Verwijderen", key=f"clear_{match.id}"):
+                                            match.team1_score = None
+                                            match.team2_score = None
+                                            match.save()
+                                            st.success("✅ Score verwijderd!")
+                                            st.rerun()
                     
                     # Generate knockout bracket button (for default tournament)
                     if (tournament.tournament_type == "default_tournament" and 
