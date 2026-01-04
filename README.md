@@ -1,22 +1,25 @@
-# Tafeltennis Clubkampioenschap / Padel Toernooi
+# Sports Tournament Management System
 
-Een Streamlit applicatie voor het beheren van clubkampioenschappen en toernooien waar iedereen tegen iedereen speelt (round-robin).
+Een Streamlit applicatie voor het beheren van tafeltennis en padel toernooien met OOP-architectuur.
 
 ## Features
 
 - 🏓 Toernooi beheer (Tafeltennis en Padel)
-- 👥 Speler management
-- 📊 Automatische stand berekening
-- 🎯 Wedstrijd invoer
-- 📈 Wedstrijdgeschiedenis
-- 🔄 Round-robin toernooi (iedereen tegen iedereen)
+- 👥 Globale spelers database (herbruikbaar)
+- 📊 Automatische stand berekening per poule
+- 🎯 Wedstrijd invoer met sets scores
+- 📈 Poule fase met automatische verdeling
+- 🔄 Knockout bracket generatie
+- 🏆 Default Tournament (Poules → Knockout → Troostfinale)
+- 🤝 Round-robin toernooi (vriendschappelijk)
+- ⚙️ Enkel en dubbelspel ondersteuning
 
 ## Lokaal Installeren
 
 1. Clone de repository:
 ```bash
-git clone <jouw-repo-url>
-cd PadelTournament
+git clone https://github.com/KoenMertens/SportsTournament.git
+cd SportsTournament
 ```
 
 2. Installeer dependencies:
@@ -33,18 +36,9 @@ De app zal openen op `http://localhost:8501`
 
 ## Deployen naar Streamlit Cloud (GRATIS!)
 
-### Stap 1: Push naar GitHub
+### Stap 1: Code staat al op GitHub! ✅
 
-1. Maak een nieuwe repository op GitHub
-2. Voeg alle bestanden toe en commit:
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin <jouw-github-repo-url>
-git push -u origin main
-```
+Je repository is al op GitHub: https://github.com/KoenMertens/SportsTournament
 
 ### Stap 2: Deploy op Streamlit Cloud
 
