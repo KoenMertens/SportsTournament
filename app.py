@@ -28,12 +28,30 @@ init_db()
 st.title("🏆 Toernooi Beheer Systeem")
 st.markdown("Tafeltennis & Padel Toernooien")
 
-# Sidebar navigation
-page = st.sidebar.selectbox("Menu", [
+# Navigation tabs at the top
+page = st.tabs(["📋 Toernooien Overzicht", "➕ Nieuw Toernooi", "👥 Spelers Beheer"])
+page_selected = None
+
+# Determine which tab is active based on URL or default
+if 'page' not in st.session_state:
+    st.session_state.page = 0
+
+# Create tab content
+with page[0]:
+    page_selected = "Toernooien Overzicht"
+with page[1]:
+    page_selected = "Nieuw Toernooi"
+with page[2]:
+    page_selected = "Spelers Beheer"
+
+# Use selectbox as fallback to determine active page
+# Actually, let's use a simpler approach with selectbox at top
+st.markdown("---")
+page = st.selectbox("Menu", [
     "Toernooien Overzicht",
     "Nieuw Toernooi",
     "Spelers Beheer"
-])
+], key="main_nav")
 
 if page == "Spelers Beheer":
     st.subheader("👥 Spelers Beheer")
@@ -90,15 +108,18 @@ elif page == "Nieuw Toernooi":
         
         if submitted:
             if not tournament_name.strip():
-                st.error("Voer een toernooi naam in")
+                st.error("❌ Voer een toernooi naam in")
             else:
                 try:
-                    if tournament_type_choice[1] == "default_tournament":
+                    tournament_type_val = tournament_type_choice[1]
+                    team_type_val = team_type_choice[1]
+                    
+                    if tournament_type_val == "default_tournament":
                         tournament = DefaultTournament(
                             name=tournament_name.strip(),
                             sport_type=sport_type,
                             tournament_type="default_tournament",
-                            team_type=team_type_choice[1],
+                            team_type=team_type_val,
                             has_consolation=has_consolation
                         )
                     else:
@@ -106,16 +127,19 @@ elif page == "Nieuw Toernooi":
                             name=tournament_name.strip(),
                             sport_type=sport_type,
                             tournament_type="round_robin",
-                            team_type=team_type_choice[1],
+                            team_type=team_type_val,
                             has_consolation=False
                         )
                     
                     tournament.save()
-                    st.success(f"Toernooi '{tournament.name}' aangemaakt!")
+                    st.success(f"✅ Toernooi '{tournament.name}' aangemaakt!")
                     st.info("Ga naar 'Toernooien Overzicht' om teams en spelers toe te voegen.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Fout bij aanmaken: {e}")
+                    st.error(f"❌ Fout bij aanmaken: {str(e)}")
+                    import traceback
+                    with st.expander("🔍 Details"):
+                        st.code(traceback.format_exc())
 
 elif page == "Toernooien Overzicht":
     st.subheader("📋 Toernooien Overzicht")
