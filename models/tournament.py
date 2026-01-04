@@ -3,9 +3,12 @@ Tournament base class - abstract base for different tournament types
 """
 import sqlite3
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from database import get_connection
 from .team import Team
+
+if TYPE_CHECKING:
+    from .match import Match, MatchPhase
 
 
 class Tournament(ABC):
@@ -122,12 +125,12 @@ class Tournament(ABC):
         team.tournament_id = self.id
         return team.save()
     
-    def get_matches(self, phase: Optional[str] = None) -> List[Match]:
+    def get_matches(self, phase: Optional[str] = None):
         """Get all matches for this tournament, optionally filtered by phase"""
         if not self.id:
             return []
         
-        from .match import MatchPhase
+        from .match import Match, MatchPhase
         phase_enum = None
         if phase:
             phase_enum = MatchPhase(phase)
