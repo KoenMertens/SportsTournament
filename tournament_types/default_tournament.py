@@ -167,7 +167,7 @@ class DefaultTournament(Tournament):
             return False
         return all(m.is_played for m in matches)
     
-    def generate_knockout_matches(self) -> List[Match]:
+    def generate_knockout_matches(self):
         """
         Generate knockout bracket matches based on poule results.
         Only works if all poule matches are played.
