@@ -87,14 +87,17 @@ with tab_new:
                         )
                     
                     tournament.save()
-                    st.success(f"✅ Toernooi '{tournament.name}' aangemaakt!")
                     
-                    # Store tournament ID to auto-select it
+                    # Store tournament ID to auto-select it and switch tab
                     st.session_state.created_tournament_id = tournament.id
+                    st.session_state.current_tab = "overview"
                     
-                    # Show message and redirect instruction
+                    # Success message and auto-refresh
+                    st.success(f"✅ Toernooi '{tournament.name}' aangemaakt!")
                     st.info("💡 Ga naar het '📋 Toernooien' tabblad om teams/spelers toe te voegen.")
                     st.balloons()  # Celebration!
+                    
+                    # Force refresh to show new tournament immediately
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Fout bij aanmaken: {str(e)}")
