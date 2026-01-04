@@ -5,10 +5,12 @@ OOP-based tournament management system
 import streamlit as st
 import pandas as pd
 from database import init_db
-from models.tournament import Tournament
+
+# Import models in correct order to avoid circular dependencies
 from models.player import Player
 from models.team import Team
 from models.match import Match, MatchPhase
+from models.tournament import Tournament
 from tournament_types.default_tournament import DefaultTournament
 from tournament_types.round_robin import RoundRobinTournament
 

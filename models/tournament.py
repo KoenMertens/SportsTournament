@@ -1,6 +1,8 @@
 """
 Tournament base class - abstract base for different tournament types
 """
+from __future__ import annotations
+
 import sqlite3
 from abc import ABC, abstractmethod
 from typing import Optional, List
