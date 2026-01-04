@@ -1,6 +1,8 @@
 """
 Bracket generation utilities for knockout phase
 """
+from __future__ import annotations
+
 from typing import List, Tuple, Dict, Optional
 from collections import defaultdict
 from models.team import Team
@@ -41,7 +43,7 @@ class TeamStats:
         return f"TeamStats({self.team.display_name}, W:{self.wins}, Sets:{self.sets_balance})"
 
 
-def calculate_poule_standings(teams: List[Team], matches: List[Match]) -> List[Tuple[Team, TeamStats]]:
+def calculate_poule_standings(teams: List[Team], matches: List['Match']) -> List[Tuple[Team, TeamStats]]:
     """
     Calculate standings for teams in a poule based on matches.
     Ranking: 1. Wins, 2. Sets balance, 3. Points balance
@@ -117,7 +119,7 @@ def get_qualified_teams_from_poules(tournament_id: int, top_n: int = 2) -> List[
     return qualified
 
 
-def generate_knockout_bracket(tournament_id: int, qualified_teams: List[Tuple[Team, str, TeamStats]]) -> List[Match]:
+def generate_knockout_bracket(tournament_id: int, qualified_teams: List[Tuple[Team, str, TeamStats]]):
     """
     Generate knockout bracket matches.
     
@@ -258,7 +260,7 @@ def generate_knockout_bracket(tournament_id: int, qualified_teams: List[Tuple[Te
     return matches
 
 
-def generate_knockout_round(tournament_id: int, previous_round_winners: List[Team], round_name: str) -> List[Match]:
+def generate_knockout_round(tournament_id: int, previous_round_winners: List[Team], round_name: str):
     """
     Generate next round of knockout bracket from previous round winners.
     """
