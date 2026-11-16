@@ -17,7 +17,7 @@ Eén bestand, `index.html`, dat volledig in de browser draait. Geen server, geen
 - Eindrondes volgens de vaste clubtabellen voor 2 tot 8 poules ("Tabellen voor eindrondes"): één tabel voor de 1ste en 2de, één voor de 3de en 4de.
 - 2 winnende sets tot 11; halve finales, finale en wedstrijd om plaats 3 naar 3 winnende sets (instelbaar).
 - Poulestand: matchpunten (winst 2, verlies 1, forfait 0), bij gelijkstand het onderlinge resultaat (punten, sets, balpunten).
-- Voorgift (optioneel): VTTL-herentabel, te spelen tot 11. De app toont de voorgift per wedstrijd en op de briefjes.
+- Voorgift (optioneel): 1 punt per 2 klassementen verschil, te spelen tot 11 (naar beneden afgerond, of naar boven zoals de VTTL-tabel). De app toont de voorgift per wedstrijd en op de briefjes.
 - Bij poulewedstrijden stelt de app een poulegenoot voor die telt.
 - Wedstrijdbriefjes kun je afdrukken, per poule of voor de lopende wedstrijden.
 

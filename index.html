@@ -560,12 +560,15 @@ const TT = (() => {
     const c = p.players.filter(id => id !== m.p1 && id !== m.p2 && !busy.has(id) && !s.players.find(x => x.id === id)?.withdrawn);
     return c.sort((a, b) => count(a) - count(b))[0] || null;
   }
-  // Voorgift volgens de VTTL-herentabel: helft van het aantal klassementen verschil, naar boven afgerond.
+  // Voorgift, te spelen tot 11: 1 punt per 2 klassementen verschil.
+  //  - 'half': naar beneden afgerond (C0-C2 = 0, C0-C4 = 1)
+  //  - 'vttl': naar boven afgerond, zoals de VTTL-herentabel (C0-C2 = 1, C0-C4 = 1)
   // Geeft {to: pid van wie de punten krijgt, n} of null.
   function handicap(s, m) {
-    if (s.settings.handicap !== 'vttl' || !isPlayable(m)) return null;
+    const mode = s.settings.handicap;
+    if ((mode !== 'vttl' && mode !== 'half') || !isPlayable(m)) return null;
     const rv = id => Math.min(rankValue(s.players.find(x => x.id === id)?.rank), RANKS.length - 1);
-    const a = rv(m.p1), b = rv(m.p2), n = Math.ceil(Math.abs(a - b) / 2);
+    const a = rv(m.p1), b = rv(m.p2), d = Math.abs(a - b) / 2, n = mode === 'half' ? Math.floor(d) : Math.ceil(d);
     return n ? { to: a > b ? m.p1 : m.p2, n } : null;
   }
   function assign(s, id, table) {
@@ -706,7 +709,7 @@ function viewPlayers() {
       <label>Poulegrootte <select data-set="pouleSize">${[3, 4, 5, 6].map(b => `<option value="${b}" ${s.settings.pouleSize === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
       <label>Door naar hoofdtabel <select data-set="qualifiers">${[1, 2, 3].map(b => `<option value="${b}" ${s.settings.qualifiers === b ? 'selected' : ''}>top ${b}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-set="consolation" ${s.settings.consolation ? 'checked' : ''}> Troosttabel voor de anderen</label>
-      <label>Voorgift <select data-set="handicap"><option value="none" ${s.settings.handicap !== 'vttl' ? 'selected' : ''}>niet tonen</option><option value="vttl" ${s.settings.handicap === 'vttl' ? 'selected' : ''}>VTTL heren (tot 11)</option></select></label>
+      <label>Voorgift <select data-set="handicap"><option value="none" ${!['half', 'vttl'].includes(s.settings.handicap) ? 'selected' : ''}>niet tonen</option><option value="half" ${s.settings.handicap === 'half' ? 'selected' : ''}>1 punt per 2 klassementen</option><option value="vttl" ${s.settings.handicap === 'vttl' ? 'selected' : ''}>VTTL-tabel (1 klassement = 1 punt)</option></select></label>
     </div></div>`;
     h += `<div class="card"><h2>Spelers toevoegen</h2>
       <form data-form="add-player" class="row"><input name="name" placeholder="Naam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
@@ -915,7 +918,7 @@ function viewBackup() {
     <label class="btn">⬆ Back-up laden <input type="file" accept=".json,application/json" data-action="import" style="display:none"></label></div></div>
     <div class="card"><h2>Instellingen tijdens het tornooi</h2><div class="row">
       <label>Aantal tafels <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
-      <label>Voorgift <select data-set="handicap"><option value="none" ${s.settings.handicap !== 'vttl' ? 'selected' : ''}>niet tonen</option><option value="vttl" ${s.settings.handicap === 'vttl' ? 'selected' : ''}>VTTL heren (tot 11)</option></select></label>
+      <label>Voorgift <select data-set="handicap"><option value="none" ${!['half', 'vttl'].includes(s.settings.handicap) ? 'selected' : ''}>niet tonen</option><option value="half" ${s.settings.handicap === 'half' ? 'selected' : ''}>1 punt per 2 klassementen</option><option value="vttl" ${s.settings.handicap === 'vttl' ? 'selected' : ''}>VTTL-tabel (1 klassement = 1 punt)</option></select></label>
       <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label></div>
       <p class="hint">Wedstrijdformaat: ${(s.settings.bestOf + 1) / 2} winnende sets, vanaf halve finale ${(s.settings.bestOfFinals + 1) / 2} · top ${s.settings.qualifiers} door · troosttabel ${s.settings.consolation ? 'ja' : 'nee'}</p></div>
     <div class="card"><h2>Tweede scherm</h2><p>Open <b>🖥 Scherm</b> (rechtsboven) en sleep dat venster naar de tv of beamer (F11 voor volledig scherm). Het volgt automatisch alle uitslagen die je hier ingeeft.</p></div>

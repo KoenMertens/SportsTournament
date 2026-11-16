@@ -210,6 +210,11 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
   assert.deepStrictEqual(h('e', 'd'), { to: 'd', n: 9 });
   assert.deepStrictEqual(h('e', 'f'), { to: 'f', n: 9 });
   assert.strictEqual(h('d', 'f'), null);
+  s.settings.handicap = 'half';
+  assert.strictEqual(h('a', 'b'), null);                    // 1 klassement verschil: geen voorgift
+  assert.deepStrictEqual(h('c', 'a'), { to: 'c', n: 2 });   // B0-C0: 4 klassementen
+  assert.deepStrictEqual(h('a', 'd'), { to: 'd', n: 8 });   // B0-NG: 16 klassementen
+  assert.deepStrictEqual(h('b', 'd'), { to: 'd', n: 7 });   // B2-NG: 15 klassementen
   s.settings.handicap = 'none';
   assert.strictEqual(h('a', 'd'), null);
   s.players = s.players.slice(0, 3);
