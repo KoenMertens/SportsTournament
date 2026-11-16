@@ -230,29 +230,43 @@ const TT = (() => {
   }
 
   /* ---------- Sets & uitslagen ---------- */
-  // "11-7", "7" (= 11-7), "-9" (= 9-11), "12" (= 14-12), "-0" (= 0-11)
-  function parseSet(str) {
+  // Voorgift: h = [h1, h2] is het aantal punten dat elke speler "minder" moet scoren dan zijn
+  // tegenstander. Zonder voorgift [0, 0]. Met voorgift n speelt de laagst geklasseerde tot 11
+  // (h = n) en de hoogst geklasseerde tot 11 + n (h = 0). Tel h bij de score op en je krijgt een
+  // gewone set tot 11 + n.
+  const NOH = [0, 0];
+  // "11-7", "7" (= 11-7), "-9" (= 9-11), "12" (= 14-12), "-0" (= 0-11); bij voorgift krijgt de
+  // winnaar zijn eigen doelscore.
+  function parseSet(str, h = NOH) {
     str = String(str ?? '').trim().replace(/\s+/g, '');
     if (!str) return null;
     let m = str.match(/^(\d{1,2})[-:\/](\d{1,2})$/);
     if (m) return [+m[1], +m[2]];
     m = str.match(/^([-+]?)(\d{1,2})$/);
     if (m) {
-      const l = +m[2], w = l <= 9 ? 11 : l + 2;
-      return m[1] === '-' ? [l, w] : [w, l];
+      const T = 11 + Math.max(h[0], h[1]), p1wins = m[1] !== '-', l = +m[2];
+      const lAdj = l + h[p1wins ? 1 : 0], wAdj = lAdj <= T - 2 ? T : lAdj + 2, w = wAdj - h[p1wins ? 0 : 1];
+      return p1wins ? [w, l] : [l, w];
     }
     return undefined; // ongeldig
   }
-  const validSet = ([a, b]) => { const hi = Math.max(a, b), d = Math.abs(a - b); return hi >= 11 && d >= 2 && (hi === 11 || d === 2); };
+  // Zonder voorgift: gewone regels (tot 11, 2 punten verschil). Met voorgift soepeler, omdat clubs
+  // het verlengen verschillend toepassen: de winnaar moet zijn doelscore halen en de verliezer niet.
+  function validSet([x, y], h = NOH) {
+    const a = x + h[0], b = y + h[1], T = 11 + Math.max(h[0], h[1]);
+    const hi = Math.max(a, b), lo = Math.min(a, b), d = hi - lo;
+    if (!h[0] && !h[1]) return hi >= 11 && d >= 2 && (hi === 11 || d === 2);
+    return hi >= T && d >= 1 && (lo < T || d === 2);
+  }
 
   // Controleert setstanden; geeft {ok, score:[x,y], error}
-  function checkSets(sets, bestOf) {
+  function checkSets(sets, bestOf, h = NOH) {
     const need = Math.ceil(bestOf / 2);
     let w1 = 0, w2 = 0;
     for (let i = 0; i < sets.length; i++) {
       if (w1 === need || w2 === need) return { ok: false, error: `Set ${i + 1} is te veel: de wedstrijd was al beslist.` };
-      if (!validSet(sets[i])) return { ok: false, error: `Set ${i + 1} (${sets[i][0]}-${sets[i][1]}) is geen geldige setstand.` };
-      sets[i][0] > sets[i][1] ? w1++ : w2++;
+      if (!validSet(sets[i], h)) return { ok: false, error: `Set ${i + 1} (${sets[i][0]}-${sets[i][1]}) is geen geldige setstand${h[0] || h[1] ? ` (doelscores ${11 + Math.max(...h) - h[0]} en ${11 + Math.max(...h) - h[1]})` : ''}.` };
+      sets[i][0] + h[0] > sets[i][1] + h[1] ? w1++ : w2++;
     }
     if (w1 !== need && w2 !== need) return { ok: false, error: `Nog niet beslist: iemand moet ${need} sets winnen (nu ${w1}-${w2}).` };
     return { ok: true, score: [w1, w2] };
@@ -491,7 +505,7 @@ const TT = (() => {
     const bo = m.bo || s.settings.bestOf, need = Math.ceil(bo / 2);
     let r;
     if (result.wo) r = { ok: true, score: result.wo === 1 ? [0, need] : [need, 0] };
-    else if (result.sets) r = checkSets(result.sets, bo);
+    else if (result.sets) r = checkSets(result.sets, bo, targets(s, m).h);
     else r = checkScore(result.score, bo);
     if (!r.ok) throw new Error(r.error);
     if (m.kind !== 'poule' && isDone(m)) clearDown(s, m);
@@ -560,16 +574,16 @@ const TT = (() => {
     const c = p.players.filter(id => id !== m.p1 && id !== m.p2 && !busy.has(id) && !s.players.find(x => x.id === id)?.withdrawn);
     return c.sort((a, b) => count(a) - count(b))[0] || null;
   }
-  // Voorgift, te spelen tot 11: 1 punt per 2 klassementen verschil.
-  //  - 'half': naar beneden afgerond (C0-C2 = 0, C0-C4 = 1)
-  //  - 'vttl': naar boven afgerond, zoals de VTTL-herentabel (C0-C2 = 1, C0-C4 = 1)
-  // Geeft {to: pid van wie de punten krijgt, n} of null.
-  function handicap(s, m) {
+  // Voorgift: de laagst geklasseerde speelt tot 11, de hoogst geklasseerde tot 11 + n, met
+  // n = 1 punt per 2 klassementen verschil ('half': naar beneden afgerond, 'up': naar boven).
+  // Geeft {n, h: [h1, h2], t: [doel1, doel2]}.
+  function targets(s, m) {
     const mode = s.settings.handicap;
-    if ((mode !== 'vttl' && mode !== 'half') || !isPlayable(m)) return null;
+    if ((mode !== 'half' && mode !== 'up') || !isPlayable(m)) return { n: 0, h: NOH, t: [11, 11] };
     const rv = id => Math.min(rankValue(s.players.find(x => x.id === id)?.rank), RANKS.length - 1);
     const a = rv(m.p1), b = rv(m.p2), d = Math.abs(a - b) / 2, n = mode === 'half' ? Math.floor(d) : Math.ceil(d);
-    return n ? { to: a > b ? m.p1 : m.p2, n } : null;
+    const h = a > b ? [n, 0] : [0, n];           // hogere rankValue = lager geklasseerd
+    return { n, h, t: [11 + n - h[0], 11 + n - h[1]] };
   }
   function assign(s, id, table) {
     const m = s.matches.find(x => x.id === id);
@@ -625,7 +639,7 @@ const TT = (() => {
   return { RANKS, rankValue, newState, pouleSizes, drawPoules, roundRobin, startPoules, parseSet, validSet, checkSets,
     checkScore, pouleStandings, allPoulesDone, seedOrder, meetRound, buildBracket, clubBracket, CLUB_TABLES, koEntries, startKnockout, resetKnockout,
     setResult, clearResult, canEdit, withdraw, addLatePlayer, readyMatches, freeTables, assign, autoAssign, busyPlayers,
-    handicap, pickUmpire, maxDepth, groupLabel, placements, finalRanking, podium, isDone, isPlayable, nextId, pouleName };
+    targets, pickUmpire, maxDepth, groupLabel, placements, finalRanking, podium, isDone, isPlayable, nextId, pouleName };
 })();
 window.TT = TT;
 
@@ -709,7 +723,7 @@ function viewPlayers() {
       <label>Poulegrootte <select data-set="pouleSize">${[3, 4, 5, 6].map(b => `<option value="${b}" ${s.settings.pouleSize === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
       <label>Door naar hoofdtabel <select data-set="qualifiers">${[1, 2, 3].map(b => `<option value="${b}" ${s.settings.qualifiers === b ? 'selected' : ''}>top ${b}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-set="consolation" ${s.settings.consolation ? 'checked' : ''}> Troosttabel voor de anderen</label>
-      <label>Voorgift <select data-set="handicap"><option value="none" ${!['half', 'vttl'].includes(s.settings.handicap) ? 'selected' : ''}>niet tonen</option><option value="half" ${s.settings.handicap === 'half' ? 'selected' : ''}>1 punt per 2 klassementen</option><option value="vttl" ${s.settings.handicap === 'vttl' ? 'selected' : ''}>VTTL-tabel (1 klassement = 1 punt)</option></select></label>
+      <label>Voorgift <select data-set="handicap"><option value="none" ${!['half', 'up'].includes(s.settings.handicap) ? 'selected' : ''}>geen</option><option value="half" ${s.settings.handicap === 'half' ? 'selected' : ''}>sterkste speelt verder dan 11: +1 per 2 klassementen (1 klassement = 0)</option><option value="up" ${s.settings.handicap === 'up' ? 'selected' : ''}>sterkste speelt verder dan 11: punten van de VTTL-tabel (1 klassement = 1)</option></select></label>
     </div></div>`;
     h += `<div class="card"><h2>Spelers toevoegen</h2>
       <form data-form="add-player" class="row"><input name="name" placeholder="Naam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
@@ -786,18 +800,18 @@ function viewPoules() {
 
 /* ---------- Wedstrijden & tafels ---------- */
 function extraInfo(m) {
-  const h = TT.handicap(state, m), out = [];
-  if (h) out.push(`Voorgift: ${esc(pname(h.to))} +${h.n}`);
+  const tg = TT.targets(state, m), out = [];
+  if (tg.n) out.push(`${esc(pname(m.p1))} tot ${tg.t[0]} · ${esc(pname(m.p2))} tot ${tg.t[1]}`);
   if (m.ump && !TT.isDone(m)) out.push(`Telt: ${esc(pname(m.ump))}`);
   return out.length ? `<div class="small"><b>${out.join(' · ')}</b></div>` : '';
 }
 function slipsHtml(ms) {
   return ms.map(m => {
-    const h = TT.handicap(state, m), bo = m.bo || state.settings.bestOf;
+    const tg = TT.targets(state, m), bo = m.bo || state.settings.bestOf;
     return `<div class="slip"><div class="row" style="justify-content:space-between"><b>${mLabel(m)}</b><span>Tafel: ${m.table || '____'}</span></div>
       <table><tr><th></th>${Array.from({ length: bo }, (_, i) => `<th>Set ${i + 1}</th>`).join('')}<th>Sets</th></tr>
-      ${[m.p1, m.p2].map(p => `<tr><td class="sn">${esc(pname(p))} <span class="small">${esc(prank(p))}</span>${h && h.to === p ? ` <b>+${h.n}</b>` : ''}</td>${'<td class="box"></td>'.repeat(bo + 1)}</tr>`).join('')}</table>
-      <div class="small">${(bo + 1) / 2} winnende sets tot 11${m.ump ? ` · Telt: ${esc(pname(m.ump))}` : ''} · Winnaar brengt dit briefje terug</div></div>`;
+      ${[m.p1, m.p2].map((p, i) => `<tr><td class="sn">${esc(pname(p))} <span class="small">${esc(prank(p))}</span>${tg.n ? ` <b>tot ${tg.t[i]}</b>` : ''}</td>${'<td class="box"></td>'.repeat(bo + 1)}</tr>`).join('')}</table>
+      <div class="small">${(bo + 1) / 2} winnende sets${tg.n ? '' : ' tot 11'}${m.ump ? ` · Telt: ${esc(pname(m.ump))}` : ''} · Winnaar brengt dit briefje terug</div></div>`;
   }).join('');
 }
 function printSlips(ms) {
@@ -918,7 +932,7 @@ function viewBackup() {
     <label class="btn">⬆ Back-up laden <input type="file" accept=".json,application/json" data-action="import" style="display:none"></label></div></div>
     <div class="card"><h2>Instellingen tijdens het tornooi</h2><div class="row">
       <label>Aantal tafels <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
-      <label>Voorgift <select data-set="handicap"><option value="none" ${!['half', 'vttl'].includes(s.settings.handicap) ? 'selected' : ''}>niet tonen</option><option value="half" ${s.settings.handicap === 'half' ? 'selected' : ''}>1 punt per 2 klassementen</option><option value="vttl" ${s.settings.handicap === 'vttl' ? 'selected' : ''}>VTTL-tabel (1 klassement = 1 punt)</option></select></label>
+      <label>Voorgift <select data-set="handicap"><option value="none" ${!['half', 'up'].includes(s.settings.handicap) ? 'selected' : ''}>geen</option><option value="half" ${s.settings.handicap === 'half' ? 'selected' : ''}>sterkste speelt verder dan 11: +1 per 2 klassementen (1 klassement = 0)</option><option value="up" ${s.settings.handicap === 'up' ? 'selected' : ''}>sterkste speelt verder dan 11: punten van de VTTL-tabel (1 klassement = 1)</option></select></label>
       <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label></div>
       <p class="hint">Wedstrijdformaat: ${(s.settings.bestOf + 1) / 2} winnende sets, vanaf halve finale ${(s.settings.bestOfFinals + 1) / 2} · top ${s.settings.qualifiers} door · troosttabel ${s.settings.consolation ? 'ja' : 'nee'}</p></div>
     <div class="card"><h2>Tweede scherm</h2><p>Open <b>🖥 Scherm</b> (rechtsboven) en sleep dat venster naar de tv of beamer (F11 voor volledig scherm). Het volgt automatisch alle uitslagen die je hier ingeeft.</p></div>
@@ -954,15 +968,16 @@ function openScore(id) {
   if (!m || !TT.isPlayable(m)) return;
   const ce = TT.canEdit(state, m);
   if (!ce.ok) { toast(ce.error, true); return; }
-  const bo = m.bo || state.settings.bestOf, need = Math.ceil(bo / 2);
+  const bo = m.bo || state.settings.bestOf, need = Math.ceil(bo / 2), tg = TT.targets(state, m);
   const quick = [];
   for (let k = 0; k < need; k++) quick.push([need, k]);
   for (let k = need - 1; k >= 0; k--) quick.push([k, need]);
   $modal.innerHTML = `<div class="modal-bg" data-action="close-modal"><div class="modal" role="dialog">
     <h2>${esc(pname(m.p1))} – ${esc(pname(m.p2))}</h2><div class="muted small">${mLabel(m)} · ${need} winnende sets${m.table ? ' · tafel ' + m.table : ''}</div>${extraInfo(m)}
     <form data-form="score" data-id="${m.id}" autocomplete="off">
-      <div class="sets">${Array.from({ length: bo }, (_, i) => `<span>Set ${i + 1}</span><input name="s${i}" value="${m.sets[i] ? m.sets[i].join('-') : ''}" inputmode="text" placeholder="${i === 0 ? 'bv. 11-7 of 7' : ''}">`).join('')}</div>
-      <div class="hint">Typ <b>11-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.</div>
+      <div class="sets">${Array.from({ length: bo }, (_, i) => `<span>Set ${i + 1}</span><input name="s${i}" value="${m.sets[i] ? m.sets[i].join('-') : ''}" inputmode="text" placeholder="${i === 0 ? `bv. ${tg.t[0]}-7 of 7` : ''}">`).join('')}</div>
+      <div class="hint">${tg.n ? `Voorgift: ${esc(pname(m.p1))} speelt tot <b>${tg.t[0]}</b>, ${esc(pname(m.p2))} tot <b>${tg.t[1]}</b>. Typ de echte stand, bv. <b>${tg.t[0]}-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = gewonnen met 7 tegen, <b>-9</b> = verloren met zelf 9.`
+        : `Typ <b>11-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.`}</div>
       <div class="err" id="scoreErr"></div>
       <div class="row"><button class="primary">Opslaan</button><button type="button" data-action="close-modal">Annuleren</button>
         ${TT.isDone(m) ? `<button type="button" class="danger" data-action="clear-score" data-id="${m.id}">Uitslag wissen</button>` : ''}</div>
@@ -1000,12 +1015,13 @@ document.addEventListener('submit', e => {
   if (kind === 'score') {
     const id = f.dataset.id, sets = [];
     const bo = state.matches.find(x => x.id === id)?.bo || state.settings.bestOf;
+    const tgh = TT.targets(state, state.matches.find(x => x.id === id)).h;
     for (let i = 0; i < bo; i++) {
-      const raw = fd.get('s' + i), p = TT.parseSet(raw);
+      const raw = fd.get('s' + i), p = TT.parseSet(raw, tgh);
       if (p === undefined) { document.getElementById('scoreErr').textContent = `Set ${i + 1}: "${raw}" begrijp ik niet.`; return; }
       if (p) sets.push(p);
     }
-    const chk = TT.checkSets(sets.map(x => x.slice()), bo);
+    const chk = TT.checkSets(sets.map(x => x.slice()), bo, tgh);
     if (!chk.ok) { document.getElementById('scoreErr').textContent = chk.error; return; }
     if (mutate(s => TT.setResult(s, id, { sets }))) closeModal();
   }

@@ -198,25 +198,42 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
   assert.strictEqual(fr.length, 17);
   assert(fr.some(x => x.pid === late.id));
 }
-// --- voorgift (VTTL heren) en scheidsrechter
+// --- voorgift (sterkste speelt tot 11 + n) en scheidsrechter
 {
   const s = TT.newState();
-  s.settings.handicap = 'vttl';
   [['a', 'B0'], ['b', 'B2'], ['c', 'C0'], ['d', 'NG'], ['e', 'A'], ['f', '']].forEach(([id, rank]) => s.players.push({ id, name: id, rank }));
-  const h = (p1, p2) => TT.handicap(s, { p1, p2 });
-  assert.deepStrictEqual(h('a', 'b'), { to: 'b', n: 1 });
-  assert.deepStrictEqual(h('c', 'a'), { to: 'c', n: 2 });
-  assert.deepStrictEqual(h('a', 'd'), { to: 'd', n: 8 });
-  assert.deepStrictEqual(h('e', 'd'), { to: 'd', n: 9 });
-  assert.deepStrictEqual(h('e', 'f'), { to: 'f', n: 9 });
-  assert.strictEqual(h('d', 'f'), null);
+  const tg = (p1, p2) => TT.targets(s, { p1, p2 });
+  assert.deepStrictEqual(tg('a', 'd').t, [11, 11]);            // voorgift uit
   s.settings.handicap = 'half';
-  assert.strictEqual(h('a', 'b'), null);                    // 1 klassement verschil: geen voorgift
-  assert.deepStrictEqual(h('c', 'a'), { to: 'c', n: 2 });   // B0-C0: 4 klassementen
-  assert.deepStrictEqual(h('a', 'd'), { to: 'd', n: 8 });   // B0-NG: 16 klassementen
-  assert.deepStrictEqual(h('b', 'd'), { to: 'd', n: 7 });   // B2-NG: 15 klassementen
+  assert.deepStrictEqual(tg('a', 'b').t, [11, 11]);            // 1 klassement: niets
+  assert.deepStrictEqual(tg('a', 'c').t, [13, 11]);            // B0-C0: 4 klassementen -> +2
+  assert.deepStrictEqual(tg('c', 'a').t, [11, 13]);
+  assert.deepStrictEqual(tg('a', 'd').t, [19, 11]);            // B0-NG: 16 klassementen -> +8
+  assert.deepStrictEqual(tg('b', 'd').t, [18, 11]);            // B2-NG: 15 -> +7
+  assert.deepStrictEqual(tg('d', 'f').t, [11, 11]);            // geen klassement = NG
+  s.settings.handicap = 'up';
+  assert.deepStrictEqual(tg('a', 'b').t, [12, 11]);
+  s.settings.handicap = 'half';
+  const h = tg('a', 'c').h;                                    // a tot 13, c tot 11
+  assert.deepStrictEqual(h, [0, 2]);
+  assert(TT.validSet([13, 7], h) && TT.validSet([9, 11], h) && TT.validSet([12, 11], h));
+  assert(!TT.validSet([11, 7], h), 'sterkste moet 13 halen');
+  assert(!TT.validSet([13, 11], h), 'beiden op doelscore kan niet');
+  assert(TT.validSet([15, 11], h) && TT.validSet([13, 13], h), 'verlenging met 2 verschil');
+  assert.deepStrictEqual(TT.parseSet('7', h), [13, 7]);
+  assert.deepStrictEqual(TT.parseSet('-9', h), [9, 11]);
+  assert.deepStrictEqual(TT.parseSet('-12', h), [12, 12]);     // verlenging: 12 + 2 voorgift tegen 12
+  assert.deepStrictEqual(TT.parseSet('10', h), [14, 10]);
+  assert.deepStrictEqual(TT.parseSet('7'), [11, 7]);
+  // 12-11 telt als set voor c (de laagst geklasseerde), 13-9 voor a
+  assert.deepStrictEqual(TT.checkSets([[12, 11], [13, 9], [10, 11]], 3, h).score, [1, 2]);
+  s.poules = [{ id: 'A', players: ['a', 'c', 'd'] }];
+  TT.startPoules(s);
+  const mm = s.matches.find(m => m.p1 === 'a' && m.p2 === 'c' || m.p1 === 'c' && m.p2 === 'a');
+  assert.throws(() => TT.setResult(s, mm.id, { sets: [[11, 5], [11, 5]] }));
+  TT.setResult(s, mm.id, { sets: mm.p1 === 'a' ? [[13, 5], [13, 5]] : [[5, 13], [5, 13]] });
+  assert.strictEqual(mm.winner, 'a');
   s.settings.handicap = 'none';
-  assert.strictEqual(h('a', 'd'), null);
   s.players = s.players.slice(0, 3);
   s.poules = [{ id: 'A', players: ['a', 'b', 'c'] }];
   TT.startPoules(s);
