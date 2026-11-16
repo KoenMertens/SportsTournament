@@ -36,7 +36,3 @@ node tests/logic.test.js
 ```
 
 Speelt honderden volledige tornooien na (3 tot 40 spelers) en controleert poules, standen, tabellen en eindklassement.
-
-## Vorige versie
-
-De oorspronkelijke Streamlit-app staat in `legacy/`.
