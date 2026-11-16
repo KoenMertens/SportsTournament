@@ -103,7 +103,13 @@ body.display .pill{background:#26324a;color:#c3cde0}
 .disp-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
 .disp-head h1{margin:0;font-size:32px}
 .disp-clock{font-size:28px;font-variant-numeric:tabular-nums;color:#90a0bd}
+#slips{display:none}
+.slip{border:1px solid #000;padding:8px 10px;margin:0 0 8px;break-inside:avoid;color:#000;background:#fff}
+.slip table{margin:6px 0}.slip th,.slip td{border:1px solid #000;text-align:center;padding:6px}
+.slip td.sn{text-align:left;width:45%;white-space:normal}.slip td.box{height:30px}
 @media print{
+  body.print-slips main,body.print-slips #modal{display:none!important}
+  body.print-slips #slips{display:block;columns:2;column-gap:10px}
   header,nav,.noprint,button{display:none!important}
   body{background:#fff}
   .card{break-inside:avoid;border-color:#999}
@@ -122,6 +128,7 @@ body.display .pill{background:#26324a;color:#c3cde0}
 </header>
 <main id="app"></main>
 <div id="modal"></div>
+<div id="slips"></div>
 
 <script>
 /* =========================================================================
@@ -135,7 +142,7 @@ const TT = (() => {
     return {
       version: 1,
       name: 'Clubkampioenschap',
-      settings: { bestOf: 3, bestOfFinals: 5, tables: 4, pouleSize: 4, qualifiers: 2, consolation: true },
+      settings: { bestOf: 3, bestOfFinals: 5, handicap: 'none', tables: 4, pouleSize: 4, qualifiers: 2, consolation: true },
       stage: 'setup',            // setup | draw | poules | knockout
       players: [],               // {id,name,rank,withdrawn}
       poules: [],                // {id:'A', players:[pid]}
@@ -153,7 +160,7 @@ const TT = (() => {
     let k = Math.ceil(n / size);
     while (k > 1 && n / k < 3) k--;                 // nooit poules kleiner dan 3
     const base = Math.floor(n / k), extra = n % k;
-    return Array.from({ length: k }, (_, i) => base + (i < extra ? 1 : 0));
+    return Array.from({ length: k }, (_, i) => base + (i >= k - extra ? 1 : 0));   // kleinste poules eerst (A, B, …)
   }
   const pouleName = i => i < 26 ? String.fromCharCode(65 + i) : 'P' + (i + 1);
 
@@ -163,16 +170,23 @@ const TT = (() => {
     return a;
   }
 
-  // Potten op klassement: pot 1 = de sterkste spelers (één per poule), pot 2 de volgende, …
-  // Binnen elke pot wordt geloot, zodat in elke poule één speler uit elke sterktegroep zit.
-  function drawPoules(players, size, rnd = Math.random) {
+  // Verdeling over de poules op klassement. Elke rij ("pot") van k spelers levert één speler per poule.
+  //  - slang (standaard, zoals de clubtabel): A1 B1 … H1, H2 … A2, A3 … H3, H4 …
+  //  - loting: binnen elke pot wordt geloot.
+  // Bij gelijk klassement blijft de volgorde van de inschrijvingslijst behouden.
+  function drawPoules(players, size, random = false, rnd = Math.random) {
     const k = pouleSizes(players.length, size).length;
-    const sorted = shuffle(players, rnd).sort((a, b) => rankValue(a.rank) - rankValue(b.rank));
+    const sorted = players.map((p, i) => [p, i]).sort((a, b) => rankValue(a[0].rank) - rankValue(b[0].rank) || a[1] - b[1]).map(x => x[0]);
     const poules = Array.from({ length: k }, (_, i) => ({ id: pouleName(i), players: [] }));
-    for (let i = 0; i < sorted.length; i += k) {
+    for (let i = 0, row = 0; i < sorted.length; i += k, row++) {
       const pot = sorted.slice(i, i + k);
-      const order = shuffle(poules.map((_, x) => x), rnd).slice(0, pot.length);
-      shuffle(pot, rnd).forEach((pl, x) => poules[order[x]].players.push(pl.id));
+      // onvolledige laatste rij: de laatste poules krijgen de extra speler
+      let order = poules.map((_, x) => x);
+      if (row % 2) order.reverse();
+      if (random) {
+        order = pot.length < k ? shuffle(order.slice().sort((a, b) => a - b).slice(k - pot.length), rnd) : shuffle(order, rnd);
+      } else if (pot.length < k && row % 2 === 0) order = order.slice(k - pot.length).reverse();
+      pot.forEach((pl, x) => poules[order[x]].players.push(pl.id));
     }
     return poules;
   }
@@ -308,6 +322,31 @@ const TT = (() => {
   }
   const meetRound = (a, b) => Math.floor(Math.log2(a ^ b)) + 1;
 
+  // Vaste eindrondetabellen van de club (1ste en 2de van 2 tot 8 poules). Voor de tabel met de
+  // 3de en 4de geldt dezelfde opstelling (1 -> 3, 2 -> 4). Een ontbrekende speler is "vrij".
+  const CLUB_TABLES = {
+    2: 'A1 B2 A2 B1',
+    3: 'A1 - B2 C2 C1 A2 - B1',
+    4: 'A1 B2 C2 D1 C1 D2 A2 B1',
+    5: 'A1 - B2 C2 E1 - - D1 C1 - - E2 D2 A2 - B1',
+    6: 'A1 - C2 F2 E1 B2 - D1 C1 - A2 F1 E2 D2 - B1',
+    7: 'A1 - F2 G2 E1 C2 B2 D1 C1 A2 D2 F1 G1 E2 - B1',
+    8: 'A1 B2 G2 H1 E1 F2 C2 D1 C1 D2 E2 F1 G1 H2 A2 B1'
+  };
+  // entries: [{pid, poule, rank}] met rank 1 of 2; pouleIds in volgorde A, B, C, …
+  function clubBracket(entries, pouleIds) {
+    const t = CLUB_TABLES[pouleIds.length];
+    if (!t || entries.length < 2) return null;
+    let used = 0;
+    const slots = t.split(' ').map(c => {
+      if (c === '-') return 'BYE';
+      const e = entries.find(x => x.poule === pouleIds[c.charCodeAt(0) - 65] && x.rank === +c[1]);
+      if (e) used++;
+      return e ? e.pid : 'BYE';
+    });
+    return used === entries.length ? slots : null;   // past niet (bv. poule van 5): algemene tabel
+  }
+
   // entries: [{pid, poule, rank}] gesorteerd op rank-groep (1e, 2e, …) en poule.
   // Resultaat: array van lengte B met pid of 'BYE'.
   function buildBracket(entries) {
@@ -363,7 +402,7 @@ const TT = (() => {
   const loserOf = m => m.winner === m.p1 ? m.p2 : m.p1;
 
   function createBracket(s, kind, entries, offset) {
-    const slots = buildBracket(entries);
+    const slots = (s.settings.qualifiers === 2 && clubBracket(entries, s.poules.map(p => p.id))) || buildBracket(entries);
     if (!slots) return;
     const B = slots.length;
     const groups = [];
@@ -513,9 +552,25 @@ const TT = (() => {
     const used = new Set(s.matches.filter(m => m.table && !isDone(m)).map(m => m.table));
     return Array.from({ length: s.settings.tables }, (_, i) => i + 1).filter(t => !used.has(t));
   };
+  // Scheidsrechter: een poulegenoot die op dat moment niet speelt (wie het minst vaak telde eerst).
+  function pickUmpire(s, m) {
+    if (m.kind !== 'poule') return null;
+    const busy = busyPlayers(s), p = s.poules.find(x => x.id === m.poule);
+    const count = id => s.matches.filter(x => x.ump === id).length;
+    const c = p.players.filter(id => id !== m.p1 && id !== m.p2 && !busy.has(id) && !s.players.find(x => x.id === id)?.withdrawn);
+    return c.sort((a, b) => count(a) - count(b))[0] || null;
+  }
+  // Voorgift volgens de VTTL-herentabel: helft van het aantal klassementen verschil, naar boven afgerond.
+  // Geeft {to: pid van wie de punten krijgt, n} of null.
+  function handicap(s, m) {
+    if (s.settings.handicap !== 'vttl' || !isPlayable(m)) return null;
+    const rv = id => Math.min(rankValue(s.players.find(x => x.id === id)?.rank), RANKS.length - 1);
+    const a = rv(m.p1), b = rv(m.p2), n = Math.ceil(Math.abs(a - b) / 2);
+    return n ? { to: a > b ? m.p1 : m.p2, n } : null;
+  }
   function assign(s, id, table) {
     const m = s.matches.find(x => x.id === id);
-    m.table = table; m.started = Date.now();
+    m.table = table; m.started = Date.now(); m.ump = pickUmpire(s, m);
   }
   function autoAssign(s) {
     let n = 0;
@@ -565,9 +620,9 @@ const TT = (() => {
   }
 
   return { RANKS, rankValue, newState, pouleSizes, drawPoules, roundRobin, startPoules, parseSet, validSet, checkSets,
-    checkScore, pouleStandings, allPoulesDone, seedOrder, meetRound, buildBracket, koEntries, startKnockout, resetKnockout,
+    checkScore, pouleStandings, allPoulesDone, seedOrder, meetRound, buildBracket, clubBracket, CLUB_TABLES, koEntries, startKnockout, resetKnockout,
     setResult, clearResult, canEdit, withdraw, addLatePlayer, readyMatches, freeTables, assign, autoAssign, busyPlayers,
-    maxDepth, groupLabel, placements, finalRanking, podium, isDone, isPlayable, nextId, pouleName };
+    handicap, pickUmpire, maxDepth, groupLabel, placements, finalRanking, podium, isDone, isPlayable, nextId, pouleName };
 })();
 window.TT = TT;
 
@@ -651,6 +706,7 @@ function viewPlayers() {
       <label>Poulegrootte <select data-set="pouleSize">${[3, 4, 5, 6].map(b => `<option value="${b}" ${s.settings.pouleSize === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
       <label>Door naar hoofdtabel <select data-set="qualifiers">${[1, 2, 3].map(b => `<option value="${b}" ${s.settings.qualifiers === b ? 'selected' : ''}>top ${b}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-set="consolation" ${s.settings.consolation ? 'checked' : ''}> Troosttabel voor de anderen</label>
+      <label>Voorgift <select data-set="handicap"><option value="none" ${s.settings.handicap !== 'vttl' ? 'selected' : ''}>niet tonen</option><option value="vttl" ${s.settings.handicap === 'vttl' ? 'selected' : ''}>VTTL heren (tot 11)</option></select></label>
     </div></div>`;
     h += `<div class="card"><h2>Spelers toevoegen</h2>
       <form data-form="add-player" class="row"><input name="name" placeholder="Naam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
@@ -708,14 +764,14 @@ function matchLine(m, opts = {}) {
 function viewPoules() {
   const s = state;
   if (s.stage === 'draw') {
-    let h = `<div class="notice">Controleer de loting. Klik op twee spelers om ze van poule te wisselen. Klaar? Klik op <b>Poules starten</b>.</div>
-      <div class="row noprint" style="margin-bottom:14px"><button data-action="back-setup">← Terug naar spelers</button><button data-action="redraw">Opnieuw loten</button><button class="primary" data-action="start-poules">Poules starten →</button></div><div class="grid">`;
+    let h = `<div class="notice">Controleer de verdeling (slangsysteem op klassement; bij gelijk klassement telt de volgorde van je lijst). Klik op twee spelers om ze te wisselen. Klaar? Klik op <b>Poules starten</b>.</div>
+      <div class="row noprint" style="margin-bottom:14px"><button data-action="back-setup">← Terug naar spelers</button><button data-action="redraw-snake">Slangsysteem (standaard)</button><button data-action="redraw">Loten binnen de potten</button><button class="primary" data-action="start-poules">Poules starten →</button></div><div class="grid">`;
     s.poules.forEach(p => {
       h += `<div class="card"><h3>Poule ${p.id}</h3>${p.players.map(id => `<div class="drawp ${drawSel === id ? 'sel' : ''}" data-action="draw-swap" data-id="${id}">${esc(pname(id))} <span class="muted small">${esc(prank(id))}</span></div>`).join('')}</div>`;
     });
     return h + '</div>';
   }
-  let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="print">🖨 Afdrukken (reserve op papier)</button>
+  let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="print">🖨 Afdrukken (reserve op papier)</button><button data-action="slips-poules">🖨 Wedstrijdbriefjes poules</button>
     <span class="muted small">Blauwe rijen gaan door naar de hoofdtabel. Rangschikking: matchpunten (winst 2, verlies 1, forfait 0), daarna onderling resultaat.</span></div><div class="grid">`;
   s.poules.forEach(p => {
     const ms = s.matches.filter(m => m.kind === 'poule' && m.poule === p.id);
@@ -726,6 +782,29 @@ function viewPoules() {
 }
 
 /* ---------- Wedstrijden & tafels ---------- */
+function extraInfo(m) {
+  const h = TT.handicap(state, m), out = [];
+  if (h) out.push(`Voorgift: ${esc(pname(h.to))} +${h.n}`);
+  if (m.ump && !TT.isDone(m)) out.push(`Telt: ${esc(pname(m.ump))}`);
+  return out.length ? `<div class="small"><b>${out.join(' · ')}</b></div>` : '';
+}
+function slipsHtml(ms) {
+  return ms.map(m => {
+    const h = TT.handicap(state, m), bo = m.bo || state.settings.bestOf;
+    return `<div class="slip"><div class="row" style="justify-content:space-between"><b>${mLabel(m)}</b><span>Tafel: ${m.table || '____'}</span></div>
+      <table><tr><th></th>${Array.from({ length: bo }, (_, i) => `<th>Set ${i + 1}</th>`).join('')}<th>Sets</th></tr>
+      ${[m.p1, m.p2].map(p => `<tr><td class="sn">${esc(pname(p))} <span class="small">${esc(prank(p))}</span>${h && h.to === p ? ` <b>+${h.n}</b>` : ''}</td>${'<td class="box"></td>'.repeat(bo + 1)}</tr>`).join('')}</table>
+      <div class="small">${(bo + 1) / 2} winnende sets tot 11${m.ump ? ` · Telt: ${esc(pname(m.ump))}` : ''} · Winnaar brengt dit briefje terug</div></div>`;
+  }).join('');
+}
+function printSlips(ms) {
+  if (!ms.length) { toast('Geen wedstrijden om af te drukken.', true); return; }
+  document.getElementById('slips').innerHTML = slipsHtml(ms);
+  document.body.classList.add('print-slips');
+  const done = () => { document.body.classList.remove('print-slips'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
 function mLabel(m) {
   if (m.kind === 'poule') return `Poule ${m.poule}`;
   return `${m.kind === 'cons' ? 'Troosttabel' : 'Hoofdtabel'} · ${TT.groupLabel(m)}`;
@@ -738,10 +817,10 @@ function viewMatches() {
   const pm = TT.podium(s, 'main');
   if (pm) h += `<div class="notice ok champ">🏆 Clubkampioen: ${esc(pname(pm.first))}</div>`;
   h += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Tafels</h2>
-    <button class="primary" data-action="auto" ${!free.length || !ready.length ? 'disabled' : ''}>Vrije tafels vullen</button></div><div class="tables" style="margin-top:10px">`;
+    <span class="row"><button data-action="slips-playing" ${playing.length ? '' : 'disabled'}>🖨 Briefjes lopende wedstrijden</button><button class="primary" data-action="auto" ${!free.length || !ready.length ? 'disabled' : ''}>Vrije tafels vullen</button></span></div><div class="tables" style="margin-top:10px">`;
   for (let t = 1; t <= s.settings.tables; t++) {
     const m = playing.find(x => x.table === t);
-    h += m ? `<div class="tbl busy"><div class="tno">Tafel ${t}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>
+    h += m ? `<div class="tbl busy"><div class="tno">Tafel ${t}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}
         <div class="row"><button class="sm primary" data-action="score" data-id="${m.id}">Uitslag</button><button class="sm" data-action="unassign" data-id="${m.id}">Terug naar wachtrij</button></div></div>`
       : `<div class="tbl"><div class="tno">Tafel ${t}</div><div class="muted">Vrij</div></div>`;
   }
@@ -817,7 +896,7 @@ function viewKnockout() {
     const left = s.matches.filter(m => m.kind === 'poule' && !TT.isDone(m)).length;
     return `<div class="card"><h2>Eindrondes</h2>${left ? `<p>Nog ${left} poulewedstrijd${left > 1 ? 'en' : ''} te spelen. Daarna kun je de eindrondes aanmaken.</p>` :
       `<p>Alle poules zijn klaar.</p><button class="primary" data-action="start-ko">Eindrondes aanmaken →</button>`}
-      <p class="muted small">Top ${s.settings.qualifiers} van elke poule gaat naar de hoofdtabel${s.settings.consolation ? ', de anderen naar de troosttabel' : ''}. Iedereen speelt door tot zijn eindplaats vaststaat. Poulewinnaars zijn reekshoofd en krijgen eerst een vrije ronde. Spelers uit dezelfde poule worden zo ver mogelijk uit elkaar gezet.</p></div>`;
+      <p class="muted small">Top ${s.settings.qualifiers} van elke poule gaat naar de hoofdtabel${s.settings.consolation ? ', de anderen naar de troosttabel' : ''}. Iedereen speelt door tot zijn eindplaats vaststaat. De opstelling volgt de vaste eindrondetabellen van de club (2 tot 8 poules).</p></div>`;
   }
   const anyKo = s.matches.some(m => m.kind !== 'poule' && TT.isDone(m) && !m.bye);
   let h = `<div class="card"><h2>Hoofdtabel</h2>${podiumHtml('main')}${bracketHtml('main')}<p class="hint">Klik op een wedstrijd om de uitslag in te geven.</p></div>`;
@@ -836,6 +915,7 @@ function viewBackup() {
     <label class="btn">⬆ Back-up laden <input type="file" accept=".json,application/json" data-action="import" style="display:none"></label></div></div>
     <div class="card"><h2>Instellingen tijdens het tornooi</h2><div class="row">
       <label>Aantal tafels <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
+      <label>Voorgift <select data-set="handicap"><option value="none" ${s.settings.handicap !== 'vttl' ? 'selected' : ''}>niet tonen</option><option value="vttl" ${s.settings.handicap === 'vttl' ? 'selected' : ''}>VTTL heren (tot 11)</option></select></label>
       <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label></div>
       <p class="hint">Wedstrijdformaat: ${(s.settings.bestOf + 1) / 2} winnende sets, vanaf halve finale ${(s.settings.bestOfFinals + 1) / 2} · top ${s.settings.qualifiers} door · troosttabel ${s.settings.consolation ? 'ja' : 'nee'}</p></div>
     <div class="card"><h2>Tweede scherm</h2><p>Open <b>🖥 Scherm</b> (rechtsboven) en sleep dat venster naar de tv of beamer (F11 voor volledig scherm). Het volgt automatisch alle uitslagen die je hier ingeeft.</p></div>
@@ -852,7 +932,7 @@ function renderDisplay() {
   const pm = TT.podium(s, 'main');
   if (pm) h += `<div class="card" style="text-align:center"><div style="font-size:48px">🏆 ${esc(pname(pm.first))}</div><div class="muted">Clubkampioen · 2de ${esc(pname(pm.second))}${pm.third.length ? ' · 3de ' + pm.third.map(x => esc(pname(x))).join(' en ') : ''}</div></div>`;
   if (playing.length || next.length) {
-    h += `<div class="grid" style="grid-template-columns:2fr 1fr"><div class="card"><h2>Nu aan tafel</h2><div class="tables">${playing.map(m => `<div class="tbl busy"><div class="tno">Tafel ${m.table}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div></div>`).join('') || '<p class="muted">–</p>'}</div></div>
+    h += `<div class="grid" style="grid-template-columns:2fr 1fr"><div class="card"><h2>Nu aan tafel</h2><div class="tables">${playing.map(m => `<div class="tbl busy"><div class="tno">Tafel ${m.table}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}</div>`).join('') || '<p class="muted">–</p>'}</div></div>
       <div class="card"><h2>Volgende</h2>${next.map(m => `<div class="match"><div class="names">${esc(pname(m.p1))} – ${esc(pname(m.p2))}<div class="muted small">${mLabel(m)}</div></div></div>`).join('') || '<p class="muted">–</p>'}</div></div>`;
   }
   if (s.stage === 'knockout') {
@@ -876,7 +956,7 @@ function openScore(id) {
   for (let k = 0; k < need; k++) quick.push([need, k]);
   for (let k = need - 1; k >= 0; k--) quick.push([k, need]);
   $modal.innerHTML = `<div class="modal-bg" data-action="close-modal"><div class="modal" role="dialog">
-    <h2>${esc(pname(m.p1))} – ${esc(pname(m.p2))}</h2><div class="muted small">${mLabel(m)} · ${need} winnende sets${m.table ? ' · tafel ' + m.table : ''}</div>
+    <h2>${esc(pname(m.p1))} – ${esc(pname(m.p2))}</h2><div class="muted small">${mLabel(m)} · ${need} winnende sets${m.table ? ' · tafel ' + m.table : ''}</div>${extraInfo(m)}
     <form data-form="score" data-id="${m.id}" autocomplete="off">
       <div class="sets">${Array.from({ length: bo }, (_, i) => `<span>Set ${i + 1}</span><input name="s${i}" value="${m.sets[i] ? m.sets[i].join('-') : ''}" inputmode="text" placeholder="${i === 0 ? 'bv. 11-7 of 7' : ''}">`).join('')}</div>
       <div class="hint">Typ <b>11-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.</div>
@@ -938,7 +1018,8 @@ document.addEventListener('click', e => {
     case 'open-display': window.open(location.pathname + '#scherm', 'tt-scherm'); break;
     case 'del-player': mutate(s => { s.players = s.players.filter(p => p.id !== id); }); break;
     case 'draw': mutate(s => { s.poules = TT.drawPoules(s.players.filter(p => !p.withdrawn), s.settings.pouleSize); s.stage = 'draw'; }); tab = 'poules'; render(); break;
-    case 'redraw': mutate(s => { s.poules = TT.drawPoules(s.players.filter(p => !p.withdrawn), s.settings.pouleSize); }); break;
+    case 'redraw': mutate(s => { s.poules = TT.drawPoules(s.players.filter(p => !p.withdrawn), s.settings.pouleSize, true); }); break;
+    case 'redraw-snake': mutate(s => { s.poules = TT.drawPoules(s.players.filter(p => !p.withdrawn), s.settings.pouleSize); }); break;
     case 'back-setup': mutate(s => { s.stage = 'setup'; s.poules = []; }); tab = 'spelers'; render(); break;
     case 'draw-swap':
       if (!drawSel) { drawSel = id; render(); break; }
@@ -954,10 +1035,12 @@ document.addEventListener('click', e => {
     case 'wo': if (mutate(s => TT.setResult(s, id, { wo: +el.dataset.wo }))) closeModal(); break;
     case 'clear-score': if (mutate(s => TT.clearResult(s, id))) closeModal(); break;
     case 'auto': mutate(s => TT.autoAssign(s)); break;
-    case 'unassign': mutate(s => { const m = s.matches.find(x => x.id === id); m.table = null; m.started = null; }); break;
+    case 'unassign': mutate(s => { const m = s.matches.find(x => x.id === id); m.table = null; m.started = null; m.ump = null; }); break;
     case 'start-ko': if (mutate(s => TT.startKnockout(s))) { tab = 'tabel'; render(); } break;
     case 'reset-ko': if (confirm('Eindrondes wissen? De poule-uitslagen blijven bewaard.')) { mutate(s => TT.resetKnockout(s)); tab = 'poules'; render(); } break;
     case 'print': window.print(); break;
+    case 'slips-playing': printSlips(state.matches.filter(m => m.table && !TT.isDone(m)).sort((a, b) => a.table - b.table)); break;
+    case 'slips-poules': printSlips(state.matches.filter(m => m.kind === 'poule' && !TT.isDone(m))); break;
     case 'export': {
       const blob = new Blob([JSON.stringify(state, null, 1)], { type: 'application/json' });
       const u = URL.createObjectURL(blob), l = document.createElement('a');
@@ -975,6 +1058,7 @@ document.addEventListener('change', e => {
     mutate(s => {
       if (k === 'name') s.name = el.value;
       else if (k === 'consolation') s.settings.consolation = el.checked;
+      else if (k === 'handicap') s.settings.handicap = el.value;
       else s.settings[k] = Math.max(1, parseInt(el.value, 10) || 1);
     });
   } else if (el.dataset.pedit) {

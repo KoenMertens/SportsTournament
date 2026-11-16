@@ -70,6 +70,38 @@ for (let n = 3; n <= 60; n++) {
   assert.deepStrictEqual(TT.pouleStandings(s, 'A').rows.map(r => r.id), ['A', 'C', 'B', 'D']);
 }
 
+// --- slangsysteem en clubtabellen (zoals 'Tabellen voor eindrondes')
+{
+  const mk = n => Array.from({ length: n }, (_, i) => ({ id: 'p' + (i + 1), name: 'S' + (i + 1), rank: 'NG' }));
+  const snake = n => TT.drawPoules(mk(n), 4).map(p => p.players.join(' '));
+  assert.deepStrictEqual(snake(7), ['p1 p4 p5', 'p2 p3 p6 p7']);
+  assert.deepStrictEqual(snake(10), ['p1 p6 p7', 'p2 p5 p8', 'p3 p4 p9 p10']);
+  assert.deepStrictEqual(snake(16), ['p1 p8 p9 p16', 'p2 p7 p10 p15', 'p3 p6 p11 p14', 'p4 p5 p12 p13']);
+  const s29 = snake(29);
+  assert.deepStrictEqual(s29.map(x => x.split(' ').length), [3, 3, 3, 4, 4, 4, 4, 4]);
+  assert.strictEqual(s29[0], 'p1 p16 p17');
+  assert.strictEqual(s29[3], 'p4 p13 p20 p29');
+  assert.strictEqual(s29[7], 'p8 p9 p24 p25');
+  // tabel 1&2 en 3&4 van 5 poules bij 17 spelers
+  const s = TT.newState();
+  s.players = mk(17);
+  s.poules = TT.drawPoules(s.players, 4);
+  TT.startPoules(s);
+  // de hoogst geplaatste wint altijd: stand in elke poule = volgorde in de poule
+  const idx = id => +id.slice(1);
+  const playSeeded = () => { for (;;) { const m = s.matches.find(m => !TT.isDone(m) && TT.isPlayable(m)); if (!m) break; const need = Math.ceil(m.bo / 2); TT.setResult(s, m.id, { score: idx(m.p1) < idx(m.p2) ? [need, 0] : [0, need] }); } };
+  playSeeded();
+  TT.startKnockout(s);
+  const name = id => { if (id === 'BYE') return '-'; const p = s.poules.find(p => p.players.includes(id)); return p.id + (p.players.indexOf(id) + 1); };
+  const first = kind => s.matches.filter(m => m.kind === kind && m.gsize === m.B).sort((a, b) => a.idx - b.idx).flatMap(m => [name(m.p1), name(m.p2)]).join(' ');
+  assert.strictEqual(first('main'), 'A1 - B2 C2 E1 - - D1 C1 - - E2 D2 A2 - B1');
+  assert.strictEqual(first('cons'), 'A3 - - - E3 - - D3 C3 - - E4 D4 - - B3');
+  playSeeded();
+  const fr = TT.finalRanking(s);
+  assert.deepStrictEqual(fr.map(x => x.pos), Array.from({ length: 17 }, (_, i) => i + 1));
+  assert.strictEqual(fr[0].pid, 'p1');
+}
+
 // --- volledige tornooien
 const RANKS = ['B2', 'B6', 'C0', 'C2', 'C4', 'C6', 'D0', 'D2', 'D4', 'D6', 'E0', 'E2', 'E4', 'E6', 'NG'];
 for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons of [true, false]) {
@@ -77,7 +109,7 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
   s.settings.consolation = cons;
   s.settings.tables = 1 + Math.floor(rnd() * 8);
   for (let i = 0; i < n; i++) s.players.push({ id: TT.nextId(s, 'p'), name: 'Speler ' + (i + 1), rank: pick(RANKS) });
-  s.poules = TT.drawPoules(s.players, s.settings.pouleSize, rnd);
+  s.poules = TT.drawPoules(s.players, s.settings.pouleSize, rep % 2 === 1, rnd);
   const k = s.poules.length;
   assert.strictEqual(s.poules.flatMap(p => p.players).length, n);
   assert.strictEqual(new Set(s.poules.flatMap(p => p.players)).size, n);
@@ -150,7 +182,7 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
 {
   const s = TT.newState();
   for (let i = 0; i < 17; i++) s.players.push({ id: TT.nextId(s, 'p'), name: 'S' + i, rank: pick(RANKS) });
-  s.poules = TT.drawPoules(s.players, 4, rnd);
+  s.poules = TT.drawPoules(s.players, 4);
   TT.startPoules(s);
   const before = s.matches.length, target = s.poules.find(p => p.players.length === 3);
   const late = TT.addLatePlayer(s, 'Laat', 'D4', target.id);
@@ -165,5 +197,26 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
   const fr = TT.finalRanking(s);
   assert.strictEqual(fr.length, 17);
   assert(fr.some(x => x.pid === late.id));
+}
+// --- voorgift (VTTL heren) en scheidsrechter
+{
+  const s = TT.newState();
+  s.settings.handicap = 'vttl';
+  [['a', 'B0'], ['b', 'B2'], ['c', 'C0'], ['d', 'NG'], ['e', 'A'], ['f', '']].forEach(([id, rank]) => s.players.push({ id, name: id, rank }));
+  const h = (p1, p2) => TT.handicap(s, { p1, p2 });
+  assert.deepStrictEqual(h('a', 'b'), { to: 'b', n: 1 });
+  assert.deepStrictEqual(h('c', 'a'), { to: 'c', n: 2 });
+  assert.deepStrictEqual(h('a', 'd'), { to: 'd', n: 8 });
+  assert.deepStrictEqual(h('e', 'd'), { to: 'd', n: 9 });
+  assert.deepStrictEqual(h('e', 'f'), { to: 'f', n: 9 });
+  assert.strictEqual(h('d', 'f'), null);
+  s.settings.handicap = 'none';
+  assert.strictEqual(h('a', 'd'), null);
+  s.players = s.players.slice(0, 3);
+  s.poules = [{ id: 'A', players: ['a', 'b', 'c'] }];
+  TT.startPoules(s);
+  TT.autoAssign(s);
+  const m = s.matches.find(x => x.table);
+  assert(m.ump && m.ump !== m.p1 && m.ump !== m.p2, 'vrije speler van de poule telt');
 }
 console.log('Alle logicatests geslaagd.');
