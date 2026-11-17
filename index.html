@@ -1001,8 +1001,19 @@ function exportBackup() {
 }
 
 /* ---------- Events ---------- */
+const cleanName = n => String(n ?? '').trim().replace(/\s+/g, ' ');
+const nameKey = n => cleanName(n).toLocaleLowerCase('nl');
+const nameTaken = (name, exceptId) => state.players.some(p => p.id !== exceptId && nameKey(p.name) === nameKey(name));
+// Voegt spelers toe; dubbele namen worden geweigerd. Geeft het aantal toegevoegde spelers.
 function addPlayers(list) {
-  mutate(s => list.forEach(({ name, rank }) => { if (name) s.players.push({ id: TT.nextId(s, 'p'), name, rank }); }));
+  const seen = new Set(state.players.map(p => nameKey(p.name))), ok = [], dup = [];
+  list.forEach(({ name, rank }) => {
+    name = cleanName(name); if (!name) return;
+    if (seen.has(nameKey(name))) dup.push(name); else { seen.add(nameKey(name)); ok.push({ name, rank }); }
+  });
+  if (ok.length) mutate(s => ok.forEach(({ name, rank }) => s.players.push({ id: TT.nextId(s, 'p'), name, rank })));
+  if (dup.length) toast(`Niet toegevoegd, naam bestaat al: ${dup.join(', ')}. Voeg bv. een initiaal of "sr/jr" toe.`, true);
+  return ok.length;
 }
 document.addEventListener('submit', e => {
   const f = e.target, kind = f.dataset.form; if (!kind) return;
@@ -1019,7 +1030,8 @@ document.addEventListener('submit', e => {
     addPlayers(list);
   }
   if (kind === 'late') {
-    const name = fd.get('name').trim(); if (!name) return;
+    const name = cleanName(fd.get('name')); if (!name) return;
+    if (nameTaken(name)) { toast(`Er is al een speler met de naam ${name}. Voeg bv. een initiaal toe.`, true); return; }
     mutate(s => TT.addLatePlayer(s, name, fd.get('rank'), fd.get('poule')));
   }
   if (kind === 'score') {
@@ -1092,7 +1104,12 @@ document.addEventListener('change', e => {
       else s.settings[k] = Math.max(1, parseInt(el.value, 10) || 1);
     });
   } else if (el.dataset.pedit) {
-    mutate(s => { const p = s.players.find(x => x.id === el.dataset.id); p[el.dataset.pedit] = el.dataset.pedit === 'name' ? el.value.trim() : el.value; });
+    if (el.dataset.pedit === 'name') {
+      const name = cleanName(el.value);
+      if (!name) { toast('Een naam mag niet leeg zijn.', true); render(); return; }
+      if (nameTaken(name, el.dataset.id)) { toast(`Er is al een speler met de naam ${name}.`, true); render(); return; }
+      mutate(s => { s.players.find(x => x.id === el.dataset.id).name = name; });
+    } else mutate(s => { s.players.find(x => x.id === el.dataset.id).rank = el.value; });
   } else if (el.dataset.assign && el.value) {
     mutate(s => TT.assign(s, el.dataset.assign, +el.value));
   } else if (el.dataset.action === 'import' && el.files[0]) {
