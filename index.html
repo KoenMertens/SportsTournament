@@ -122,6 +122,7 @@ body.display .pill{background:#26324a;color:#c3cde0}
   <h1 id="title">Clubkampioenschap</h1>
   <nav id="nav"></nav>
   <div class="hdr-right">
+    <button class="sm" data-action="new-tournament" title="Begin een nieuw tornooi">＋ Nieuw tornooi</button>
     <button class="sm" data-action="undo" id="undoBtn" title="Laatste wijziging ongedaan maken">↶ Ongedaan maken</button>
     <button class="sm" data-action="open-display" title="Open een tweede venster voor tv/beamer">🖥 Scherm</button>
   </div>
@@ -936,7 +937,7 @@ function viewBackup() {
       <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label></div>
       <p class="hint">Wedstrijdformaat: ${(s.settings.bestOf + 1) / 2} winnende sets, vanaf halve finale ${(s.settings.bestOfFinals + 1) / 2} · top ${s.settings.qualifiers} door · troosttabel ${s.settings.consolation ? 'ja' : 'nee'}</p></div>
     <div class="card"><h2>Tweede scherm</h2><p>Open <b>🖥 Scherm</b> (rechtsboven) en sleep dat venster naar de tv of beamer (F11 voor volledig scherm). Het volgt automatisch alle uitslagen die je hier ingeeft.</p></div>
-    <div class="card"><h2>Opnieuw beginnen</h2><p class="muted">Wist alle spelers en uitslagen. Download eerst een back-up als je die wilt bewaren.</p><button class="danger" data-action="reset-all">Alles wissen</button></div>`;
+    <div class="card"><h2>Nieuw tornooi</h2><p class="muted">Sluit het huidige tornooi af en begint opnieuw. Er wordt eerst automatisch een back-up gedownload, en de instellingen blijven behouden.</p><button class="danger" data-action="new-tournament">Nieuw tornooi</button></div>`;
 }
 
 /* ---------- Tv / beamer ---------- */
@@ -990,6 +991,14 @@ function openScore(id) {
   setTimeout(() => $modal.querySelector('input[name=s0]')?.focus(), 0);
 }
 const closeModal = () => { $modal.innerHTML = ''; };
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(state, null, 1)], { type: 'application/json' });
+  const u = URL.createObjectURL(blob), l = document.createElement('a');
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  const nm = (state.name || 'tornooi').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tornooi';
+  l.href = u; l.download = `${nm}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+}
 
 /* ---------- Events ---------- */
 function addPlayers(list) {
@@ -1061,14 +1070,15 @@ document.addEventListener('click', e => {
     case 'print': window.print(); break;
     case 'slips-playing': printSlips(state.matches.filter(m => m.table && !TT.isDone(m)).sort((a, b) => a.table - b.table)); break;
     case 'slips-poules': printSlips(state.matches.filter(m => m.kind === 'poule' && !TT.isDone(m))); break;
-    case 'export': {
-      const blob = new Blob([JSON.stringify(state, null, 1)], { type: 'application/json' });
-      const u = URL.createObjectURL(blob), l = document.createElement('a');
-      const d = new Date(), pad = n => String(n).padStart(2, '0');
-      l.href = u; l.download = `tornooi-backup-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
-      document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000); break;
+    case 'export': exportBackup(); break;
+    case 'new-tournament': {
+      const has = state.players.length > 0;
+      if (!confirm('Bent u zeker? Het huidige tornooi wordt afgesloten en alle spelers en uitslagen worden gewist.' + (has ? '\n\nEr wordt eerst automatisch een back-up gedownload.' : ''))) break;
+      if (has) exportBackup();
+      mutate(s => { const keep = s.settings; Object.keys(s).forEach(k => delete s[k]); Object.assign(s, TT.newState(), { settings: keep }); });
+      tab = 'spelers'; drawSel = null; render(); toast('Nieuw tornooi gestart');
+      break;
     }
-    case 'reset-all': if (confirm('Echt alles wissen?')) { mutate(s => Object.assign(s, TT.newState())); tab = 'spelers'; render(); } break;
   }
 });
 document.addEventListener('change', e => {
