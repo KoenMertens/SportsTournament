@@ -715,6 +715,16 @@ function viewPlayers() {
   const s = state, setup = s.stage === 'setup';
   const active = s.players.filter(p => !p.withdrawn).length;
   let h = '';
+  if (s.stage === 'poules') {
+    const min = Math.min(...s.poules.map(p => p.players.length)), def = s.poules.find(p => p.players.length === min).id;
+    h += `<div class="card" id="laatkomer" style="border-color:var(--accent)"><h2>＋ Laatkomer toevoegen</h2><form data-form="late" class="row"><input name="name" placeholder="Naam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')}
+      <select name="poule">${s.poules.map(p => `<option value="${p.id}" ${p.id === def ? 'selected' : ''}>Poule ${p.id} (${p.players.length} spelers)</option>`).join('')}</select>
+      <button class="primary">Toevoegen</button></form><p class="hint">De speler komt in de gekozen poule en krijgt wedstrijden tegen iedereen uit die poule. Kies best een poule van 3. Dit kan tot je de eindrondes aanmaakt.</p></div>`;
+  } else if (s.stage === 'draw') {
+    h += `<div class="notice">De loting is gemaakt maar de poules zijn nog niet gestart. Wil je nog iemand toevoegen? Ga naar <b>Poules</b> en klik op "← Terug naar spelers". Zodra de poules gestart zijn, verschijnt hier "Laatkomer toevoegen".</div>`;
+  } else if (s.stage === 'knockout') {
+    h += `<div class="notice">De eindrondes zijn aangemaakt. Een laatkomer toevoegen kan nu niet meer.</div>`;
+  }
   if (setup) {
     h += `<div class="card"><h2>Instellingen</h2><div class="row">
       <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label>
@@ -748,11 +758,6 @@ function viewPlayers() {
   h += `</table>`;
   if (setup) h += `<div class="row" style="margin-top:12px"><button class="primary" data-action="draw" ${active < 3 ? 'disabled' : ''}>Loting maken →</button></div>`;
   h += `</div>`;
-  if (s.stage === 'poules') {
-    h += `<div class="card"><h2>Laatkomer toevoegen</h2><form data-form="late" class="row"><input name="name" placeholder="Naam" required> ${rankSelect('rank', '')}
-      <select name="poule">${s.poules.map(p => `<option value="${p.id}">Poule ${p.id} (${p.players.length})</option>`).join('')}</select>
-      <button class="primary">Toevoegen</button></form><p class="hint">De speler komt in de gekozen poule en krijgt wedstrijden tegen iedereen uit die poule.</p></div>`;
-  }
   return h;
 }
 
@@ -835,7 +840,7 @@ function viewMatches() {
   const pm = TT.podium(s, 'main');
   if (pm) h += `<div class="notice ok champ">🏆 Clubkampioen: ${esc(pname(pm.first))}</div>`;
   h += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Tafels</h2>
-    <span class="row"><button data-action="slips-playing" ${playing.length ? '' : 'disabled'}>🖨 Briefjes lopende wedstrijden</button><button class="primary" data-action="auto" ${!free.length || !ready.length ? 'disabled' : ''}>Vrije tafels vullen</button></span></div><div class="tables" style="margin-top:10px">`;
+    <span class="row">${s.stage === 'poules' ? '<button data-action="tab" data-tab="spelers">＋ Laatkomer</button>' : ''}<button data-action="slips-playing" ${playing.length ? '' : 'disabled'}>🖨 Briefjes lopende wedstrijden</button><button class="primary" data-action="auto" ${!free.length || !ready.length ? 'disabled' : ''}>Vrije tafels vullen</button></span></div><div class="tables" style="margin-top:10px">`;
   for (let t = 1; t <= s.settings.tables; t++) {
     const m = playing.find(x => x.table === t);
     h += m ? `<div class="tbl busy"><div class="tno">Tafel ${t}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}
