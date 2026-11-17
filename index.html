@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tafeltennis Clubkampioenschap</title>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#fff; --ink:#1d2330; --muted:#677084; --line:#dde1e8;
+  --accent:#1f6feb; --accent-ink:#fff; --ok:#1a7f37; --warn:#b35900; --bad:#c62828;
+  --hi:#eef4ff; --done:#f0f7f1;
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#18202f;color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header h1{font-size:18px;margin:0 12px 0 0;font-weight:650}
+nav{display:flex;flex-wrap:wrap;gap:4px}
+nav button{background:transparent;color:#c9d1e0;border:0;padding:7px 12px;border-radius:6px;font:inherit;cursor:pointer}
+nav button.active{background:#2d3a52;color:#fff}
+nav button:hover{color:#fff}
+.hdr-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+main{padding:16px;max-width:1400px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+.card h2{margin:0 0 10px;font-size:17px}
+.card h3{margin:0 0 8px;font-size:15px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(400px,1fr))}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+button,.btn{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:7px;cursor:pointer}
+button:hover{border-color:#b8c0cc}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.danger{color:var(--bad)}
+button.sm{padding:3px 8px;font-size:13px}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,select,textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+textarea{width:100%;min-height:120px}
+label{display:inline-flex;gap:6px;align-items:center}
+table{border-collapse:collapse;width:100%}
+th,td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+td{white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.q td{background:var(--hi)}
+.pill{display:inline-block;padding:1px 7px;border-radius:10px;background:#eef0f4;font-size:12px;color:var(--muted)}
+.pill.ok{background:#dff3e4;color:var(--ok)}
+.pill.play{background:#fff0d9;color:var(--warn)}
+.match{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--line)}
+.match:last-child{border-bottom:0}
+.match .names{flex:1;min-width:0}
+.match .score{font-variant-numeric:tabular-nums;font-weight:600;min-width:42px;text-align:center}
+.match.done{background:var(--done)}
+.w{font-weight:700}
+.tables{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.tbl{border:2px solid var(--line);border-radius:10px;padding:10px;min-height:110px;display:flex;flex-direction:column;gap:6px}
+.tbl.busy{border-color:#f0b35b;background:#fffaf2}
+.tbl .tno{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.tbl .vs{font-size:16px;font-weight:600}
+.notice{padding:10px 12px;border-radius:8px;background:#fff7e6;border:1px solid #f3d19e;margin-bottom:14px}
+.notice.ok{background:#eaf7ee;border-color:#b6e0c2}
+.champ{font-size:20px;font-weight:700}
+/* bracket */
+.bracket{display:flex;gap:18px;overflow-x:auto;padding-bottom:6px}
+.bround{display:flex;flex-direction:column;justify-content:space-around;min-width:200px;gap:8px}
+.bround h4{margin:0 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;text-align:center}
+.bm{border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font-size:14px}
+.bm.done{background:var(--done)}
+.bm.playing{border-color:#f0b35b;background:#fffaf2}
+.bm .bp{display:flex;justify-content:space-between;padding:4px 8px;gap:8px}
+.bm .bp+.bp{border-top:1px solid var(--line)}
+.bm .bp span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bm .tbd{color:var(--muted);font-style:italic}
+.bm.bye{opacity:.55;cursor:default}
+/* draw */
+.drawp{cursor:pointer;padding:4px 6px;border-radius:5px}
+.drawp:hover{background:#f0f3f8}
+.drawp.sel{background:#ffe9a8}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;padding:40px 12px;z-index:10;overflow:auto}
+.modal{background:#fff;border-radius:12px;padding:18px;width:100%;max-width:520px}
+.modal h2{margin:0 0 4px;font-size:18px}
+.sets{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin:12px 0}
+.sets input{width:110px}
+.err{color:var(--bad);min-height:20px;margin:6px 0}
+.hint{font-size:12px;color:var(--muted)}
+/* display mode */
+body.display{background:#0f1522;color:#eef2f8;font-size:20px}
+body.display header,body.display nav{display:none}
+body.display main{max-width:none;padding:18px 24px}
+body.display .card{background:#172033;border-color:#26324a}
+body.display th{color:#90a0bd}
+body.display th,body.display td{border-color:#26324a}
+body.display tr.q td{background:#1d2b47}
+body.display .tbl{border-color:#26324a}
+body.display .tbl.busy{border-color:#d9922e;background:#22201a}
+body.display .tbl .vs{font-size:24px}
+body.display .muted{color:#90a0bd}
+body.display .bm{background:#172033;border-color:#2e3b57}
+body.display .bm.done{background:#16281f}
+body.display .bm.playing{border-color:#d9922e;background:#22201a}
+body.display .bm .bp+.bp{border-color:#2e3b57}
+body.display .pill{background:#26324a;color:#c3cde0}
+.disp-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.disp-head h1{margin:0;font-size:32px}
+.disp-clock{font-size:28px;font-variant-numeric:tabular-nums;color:#90a0bd}
+#slips{display:none}
+.slip{border:1px solid #000;padding:8px 10px;margin:0 0 8px;break-inside:avoid;color:#000;background:#fff}
+.slip table{margin:6px 0}.slip th,.slip td{border:1px solid #000;text-align:center;padding:6px}
+.slip td.sn{text-align:left;width:45%;white-space:normal}.slip td.box{height:30px}
+@media print{
+  body.print-slips main,body.print-slips #modal{display:none!important}
+  body.print-slips #slips{display:block;columns:2;column-gap:10px}
+  header,nav,.noprint,button{display:none!important}
+  body{background:#fff}
+  .card{break-inside:avoid;border-color:#999}
+  main{padding:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Clubkampioenschap</h1>
+  <nav id="nav"></nav>
+  <div class="hdr-right">
+    <button class="sm" data-action="undo" id="undoBtn" title="Laatste wijziging ongedaan maken">↶ Ongedaan maken</button>
+    <button class="sm" data-action="open-display" title="Open een tweede venster voor tv/beamer">🖥 Scherm</button>
+  </div>
+</header>
+<main id="app"></main>
+<div id="modal"></div>
+<div id="slips"></div>
+
+<script>
+/* =========================================================================
+   Logica (zonder DOM) — ook gebruikt door de tests via window.TT
+   ========================================================================= */
+const TT = (() => {
+  const RANKS = ['A','B0','B2','B4','B6','C0','C2','C4','C6','D0','D2','D4','D6','E0','E2','E4','E6','NG'];
+  const rankValue = r => { const i = RANKS.indexOf(String(r || '').trim().toUpperCase()); return i < 0 ? RANKS.length : i; };
+
+  function newState() {
+    return {
+      version: 1,
+      name: 'Clubkampioenschap',
+      settings: { bestOf: 3, bestOfFinals: 5, handicap: 'half', tables: 4, pouleSize: 4, qualifiers: 2, consolation: true },
+      stage: 'setup',            // setup | draw | poules | knockout
+      players: [],               // {id,name,rank,withdrawn}
+      poules: [],                // {id:'A', players:[pid]}
+      matches: [],               // zie makeMatch
+      seq: 1,
+      clock: 0                   // oplopende teller voor volgorde
+    };
+  }
+  const nextId = (s, p) => p + (s.seq++);
+
+  /* ---------- Poule-indeling ---------- */
+  function pouleSizes(n, size) {
+    size = Math.max(3, size || 4);
+    if (n < 3) return [];
+    let k = Math.ceil(n / size);
+    while (k > 1 && n / k < 3) k--;                 // nooit poules kleiner dan 3
+    const base = Math.floor(n / k), extra = n % k;
+    return Array.from({ length: k }, (_, i) => base + (i >= k - extra ? 1 : 0));   // kleinste poules eerst (A, B, …)
+  }
+  const pouleName = i => i < 26 ? String.fromCharCode(65 + i) : 'P' + (i + 1);
+
+  function shuffle(a, rnd = Math.random) {
+    a = a.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  // Verdeling over de poules op klassement. Elke rij ("pot") van k spelers levert één speler per poule.
+  //  - slang (standaard, zoals de clubtabel): A1 B1 … H1, H2 … A2, A3 … H3, H4 …
+  //  - loting: binnen elke pot wordt geloot.
+  // Bij gelijk klassement blijft de volgorde van de inschrijvingslijst behouden.
+  function drawPoules(players, size, random = false, rnd = Math.random) {
+    const k = pouleSizes(players.length, size).length;
+    const sorted = players.map((p, i) => [p, i]).sort((a, b) => rankValue(a[0].rank) - rankValue(b[0].rank) || a[1] - b[1]).map(x => x[0]);
+    const poules = Array.from({ length: k }, (_, i) => ({ id: pouleName(i), players: [] }));
+    for (let i = 0, row = 0; i < sorted.length; i += k, row++) {
+      const pot = sorted.slice(i, i + k);
+      // onvolledige laatste rij: de laatste poules krijgen de extra speler
+      let order = poules.map((_, x) => x);
+      if (row % 2) order.reverse();
+      if (random) {
+        order = pot.length < k ? shuffle(order.slice().sort((a, b) => a - b).slice(k - pot.length), rnd) : shuffle(order, rnd);
+      } else if (pot.length < k && row % 2 === 0) order = order.slice(k - pot.length).reverse();
+      pot.forEach((pl, x) => poules[order[x]].players.push(pl.id));
+    }
+    return poules;
+  }
+
+  // Circle method: rondes zodat spelers afwisselend rusten.
+  function roundRobin(n) {
+    const ids = Array.from({ length: n }, (_, i) => i);
+    if (n % 2) ids.push(-1);
+    const m = ids.length, rounds = [];
+    let arr = ids.slice();
+    for (let r = 0; r < m - 1; r++) {
+      const pairs = [];
+      for (let i = 0; i < m / 2; i++) {
+        const a = arr[i], b = arr[m - 1 - i];
+        if (a >= 0 && b >= 0) pairs.push(r % 2 && i === 0 ? [b, a] : [a, b]);
+      }
+      rounds.push(pairs);
+      arr = [arr[0], arr[m - 1], ...arr.slice(1, m - 1)];
+    }
+    return rounds;
+  }
+
+  function makeMatch(s, o) {
+    return Object.assign({ id: nextId(s, 'm'), kind: 'poule', poule: null, rr: 0, depth: 0, idx: 0, bo: s.settings.bestOf,
+      p1: null, p2: null, sets: [], score: null, wo: null, winner: null, bye: false,
+      table: null, started: null, finished: null, order: s.clock++ }, o);
+  }
+
+  function pouleMatchesFor(s, poule) {
+    const rounds = roundRobin(poule.players.length);
+    const out = [];
+    rounds.forEach((pairs, r) => pairs.forEach(([a, b]) =>
+      out.push(makeMatch(s, { kind: 'poule', poule: poule.id, rr: r + 1, p1: poule.players[a], p2: poule.players[b] }))));
+    return out;
+  }
+
+  function startPoules(s) {
+    s.matches = [];
+    s.poules.forEach(p => s.matches.push(...pouleMatchesFor(s, p)));
+    s.stage = 'poules';
+  }
+
+  /* ---------- Sets & uitslagen ---------- */
+  // Voorgift: h = [h1, h2] is het aantal punten dat elke speler "minder" moet scoren dan zijn
+  // tegenstander. Zonder voorgift [0, 0]. Met voorgift n speelt de laagst geklasseerde tot 11
+  // (h = n) en de hoogst geklasseerde tot 11 + n (h = 0). Tel h bij de score op en je krijgt een
+  // gewone set tot 11 + n.
+  const NOH = [0, 0];
+  // "11-7", "7" (= 11-7), "-9" (= 9-11), "12" (= 14-12), "-0" (= 0-11); bij voorgift krijgt de
+  // winnaar zijn eigen doelscore.
+  function parseSet(str, h = NOH) {
+    str = String(str ?? '').trim().replace(/\s+/g, '');
+    if (!str) return null;
+    let m = str.match(/^(\d{1,2})[-:\/](\d{1,2})$/);
+    if (m) return [+m[1], +m[2]];
+    m = str.match(/^([-+]?)(\d{1,2})$/);
+    if (m) {
+      const T = 11 + Math.max(h[0], h[1]), p1wins = m[1] !== '-', l = +m[2];
+      const lAdj = l + h[p1wins ? 1 : 0], wAdj = lAdj <= T - 2 ? T : lAdj + 2, w = wAdj - h[p1wins ? 0 : 1];
+      return p1wins ? [w, l] : [l, w];
+    }
+    return undefined; // ongeldig
+  }
+  // Zonder voorgift: gewone regels (tot 11, 2 punten verschil). Met voorgift soepeler, omdat clubs
+  // het verlengen verschillend toepassen: de winnaar moet zijn doelscore halen en de verliezer niet.
+  function validSet([x, y], h = NOH) {
+    const a = x + h[0], b = y + h[1], T = 11 + Math.max(h[0], h[1]);
+    const hi = Math.max(a, b), lo = Math.min(a, b), d = hi - lo;
+    if (!h[0] && !h[1]) return hi >= 11 && d >= 2 && (hi === 11 || d === 2);
+    return hi >= T && d >= 1 && (lo < T || d === 2);
+  }
+
+  // Controleert setstanden; geeft {ok, score:[x,y], error}
+  function checkSets(sets, bestOf, h = NOH) {
+    const need = Math.ceil(bestOf / 2);
+    let w1 = 0, w2 = 0;
+    for (let i = 0; i < sets.length; i++) {
+      if (w1 === need || w2 === need) return { ok: false, error: `Set ${i + 1} is te veel: de wedstrijd was al beslist.` };
+      if (!validSet(sets[i], h)) return { ok: false, error: `Set ${i + 1} (${sets[i][0]}-${sets[i][1]}) is geen geldige setstand${h[0] || h[1] ? ` (doelscores ${11 + Math.max(...h) - h[0]} en ${11 + Math.max(...h) - h[1]})` : ''}.` };
+      sets[i][0] + h[0] > sets[i][1] + h[1] ? w1++ : w2++;
+    }
+    if (w1 !== need && w2 !== need) return { ok: false, error: `Nog niet beslist: iemand moet ${need} sets winnen (nu ${w1}-${w2}).` };
+    return { ok: true, score: [w1, w2] };
+  }
+  function checkScore(score, bestOf) {
+    const need = Math.ceil(bestOf / 2), [a, b] = score;
+    if (!(a >= 0 && b >= 0) || Math.max(a, b) !== need || Math.min(a, b) >= need) return { ok: false, error: 'Ongeldige setscore.' };
+    return { ok: true, score: [a, b] };
+  }
+
+  const isPlayable = m => m.p1 && m.p2 && m.p1 !== 'BYE' && m.p2 !== 'BYE';
+  const isDone = m => !!m.winner;
+
+  /* ---------- Poulestand (ITTF-regels) ---------- */
+  function statsFor(ids, matches) {
+    const st = {};
+    ids.forEach(id => st[id] = { id, played: 0, won: 0, lost: 0, mp: 0, sw: 0, sl: 0, pw: 0, pl: 0 });
+    matches.forEach(m => {
+      if (!isDone(m) || !(m.p1 in st) || !(m.p2 in st)) return;
+      const a = st[m.p1], b = st[m.p2];
+      a.played++; b.played++;
+      const w = m.winner === m.p1 ? a : b, l = w === a ? b : a;
+      w.won++; l.lost++; w.mp += 2; l.mp += m.wo ? 0 : 1;
+      const [s1, s2] = m.score || [0, 0];
+      a.sw += s1; a.sl += s2; b.sw += s2; b.sl += s1;
+      (m.sets || []).forEach(([x, y]) => { a.pw += x; a.pl += y; b.pw += y; b.pl += x; });
+    });
+    return st;
+  }
+  const frac = (w, l) => (w + l) ? w / (w + l) : 0.5;
+
+  // Recursieve rangschikking: matchpunten, bij gelijkstand onderlinge resultaten
+  // (matchpunten, setverhouding, puntenverhouding) tussen enkel de betrokken spelers.
+  function orderTied(ids, matches, tiebreak, first) {
+    if (ids.length <= 1) return ids.slice();
+    const sub = first ? matches : matches.filter(m => ids.includes(m.p1) && ids.includes(m.p2));
+    const st = statsFor(ids, sub);
+    const crits = [x => x.mp, x => frac(x.sw, x.sl), x => frac(x.pw, x.pl)];
+    for (const c of crits) {
+      const groups = groupBy(ids, id => c(st[id]));
+      if (groups.length > 1) return groups.flatMap(g => orderTied(g, matches, tiebreak, false));
+    }
+    return ids.slice().sort(tiebreak);
+  }
+  function groupBy(ids, key) {
+    const vals = ids.map(id => [id, key(id)]).sort((a, b) => b[1] - a[1]);
+    const out = [];
+    vals.forEach(([id, v], i) => { if (i && Math.abs(v - vals[i - 1][1]) < 1e-12) out[out.length - 1].push(id); else out.push([id]); });
+    return out;
+  }
+  function pouleStandings(s, pouleId) {
+    const p = s.poules.find(x => x.id === pouleId);
+    const ms = s.matches.filter(m => m.kind === 'poule' && m.poule === pouleId);
+    const byId = Object.fromEntries(s.players.map(x => [x.id, x]));
+    const tb = (a, b) => rankValue(byId[a]?.rank) - rankValue(byId[b]?.rank) || String(byId[a]?.name).localeCompare(byId[b]?.name);
+    const order = orderTied(p.players, ms, tb, true);
+    const st = statsFor(p.players, ms);
+    return { complete: ms.length > 0 && ms.every(isDone), rows: order.map((id, i) => Object.assign({ pos: i + 1 }, st[id])) };
+  }
+  const allPoulesDone = s => s.matches.some(m => m.kind === 'poule') && s.matches.filter(m => m.kind === 'poule').every(isDone);
+
+  /* ---------- Knock-out ---------- */
+  function seedOrder(B) {
+    let o = [1];
+    while (o.length < B) { const n = o.length * 2; o = o.flatMap(x => [x, n + 1 - x]); }
+    return o;
+  }
+  const meetRound = (a, b) => Math.floor(Math.log2(a ^ b)) + 1;
+
+  // Vaste eindrondetabellen van de club (1ste en 2de van 2 tot 8 poules). Voor de tabel met de
+  // 3de en 4de geldt dezelfde opstelling (1 -> 3, 2 -> 4). Een ontbrekende speler is "vrij".
+  const CLUB_TABLES = {
+    2: 'A1 B2 A2 B1',
+    3: 'A1 - B2 C2 C1 A2 - B1',
+    4: 'A1 B2 C2 D1 C1 D2 A2 B1',
+    5: 'A1 - B2 C2 E1 - - D1 C1 - - E2 D2 A2 - B1',
+    6: 'A1 - C2 F2 E1 B2 - D1 C1 - A2 F1 E2 D2 - B1',
+    7: 'A1 - F2 G2 E1 C2 B2 D1 C1 A2 D2 F1 G1 E2 - B1',
+    8: 'A1 B2 G2 H1 E1 F2 C2 D1 C1 D2 E2 F1 G1 H2 A2 B1'
+  };
+  // entries: [{pid, poule, rank}] met rank 1 of 2; pouleIds in volgorde A, B, C, …
+  function clubBracket(entries, pouleIds) {
+    const t = CLUB_TABLES[pouleIds.length];
+    if (!t || entries.length < 2) return null;
+    let used = 0;
+    const slots = t.split(' ').map(c => {
+      if (c === '-') return 'BYE';
+      const e = entries.find(x => x.poule === pouleIds[c.charCodeAt(0) - 65] && x.rank === +c[1]);
+      if (e) used++;
+      return e ? e.pid : 'BYE';
+    });
+    return used === entries.length ? slots : null;   // past niet (bv. poule van 5): algemene tabel
+  }
+
+  // entries: [{pid, poule, rank}] gesorteerd op rank-groep (1e, 2e, …) en poule.
+  // Resultaat: array van lengte B met pid of 'BYE'.
+  function buildBracket(entries) {
+    const Q = entries.length;
+    if (Q < 2) return null;
+    let B = 1; while (B < Q) B *= 2;
+    const L = Math.log2(B);
+    const order = seedOrder(B);
+    const posOfSeed = {}; order.forEach((sd, pos) => posOfSeed[sd] = pos);
+    const slots = new Array(B).fill(null);
+    order.forEach((sd, pos) => { if (sd > Q) slots[pos] = 'BYE'; });
+
+    const groups = [];
+    entries.forEach(e => { (groups[e.rank - 1] = groups[e.rank - 1] || []).push(e); });
+    const placed = []; // {e,pos}
+    let nextSeed = 1;
+    const cost = (e, pos, others) => others.reduce((c, o) => o.e.poule === e.poule && o.pos !== pos ? c + (1 << (2 * (L - meetRound(pos, o.pos)))) : c, 0);
+
+    groups.filter(Boolean).forEach((grp, gi) => {
+      if (gi === 0) { // groepswinnaars op vaste reekshoofdplaatsen
+        grp.forEach(e => { const pos = posOfSeed[nextSeed++]; slots[pos] = e.pid; placed.push({ e, pos }); });
+        return;
+      }
+      const free = [];
+      for (let k = 0; k < grp.length; k++) free.push(posOfSeed[nextSeed++]);
+      // greedy, daarna verbeteren met wissels
+      const asg = [];
+      const avail = free.slice();
+      grp.forEach(e => {
+        let best = -1, bc = Infinity;
+        avail.forEach((pos, i) => { const c = cost(e, pos, placed.concat(asg)); if (c < bc) { bc = c; best = i; } });
+        asg.push({ e, pos: avail[best] }); avail.splice(best, 1);
+      });
+      const total = () => { const all = placed.concat(asg); return asg.reduce((c, a) => c + cost(a.e, a.pos, all), 0); };
+      let improved = true, guard = 0;
+      while (improved && guard++ < 50) {
+        improved = false;
+        for (let i = 0; i < asg.length; i++) for (let j = i + 1; j < asg.length; j++) {
+          const before = total();
+          [asg[i].pos, asg[j].pos] = [asg[j].pos, asg[i].pos];
+          if (total() < before) improved = true; else [asg[i].pos, asg[j].pos] = [asg[j].pos, asg[i].pos];
+        }
+      }
+      asg.forEach(a => { slots[a.pos] = a.e.pid; placed.push(a); });
+    });
+    return slots;
+  }
+
+  // Volledig plaatsingsschema: elke wedstrijd hoort bij een groep (plaatsen gstart … gstart+gsize-1).
+  // Winnaars spelen verder om de bovenste helft van die plaatsen, verliezers om de onderste helft.
+  const koMatch = (s, kind, gstart, gsize, idx) => s.matches.find(m => m.kind === kind && m.gstart === gstart && m.gsize === gsize && m.idx === idx);
+  const maxDepth = (s, kind) => Math.max(0, ...s.matches.filter(m => m.kind === kind).map(m => m.depth));
+  const loserOf = m => m.winner === m.p1 ? m.p2 : m.p1;
+
+  function createBracket(s, kind, entries, offset) {
+    const slots = (s.settings.qualifiers === 2 && clubBracket(entries, s.poules.map(p => p.id))) || buildBracket(entries);
+    if (!slots) return;
+    const B = slots.length;
+    const groups = [];
+    (function rec(start, size, depth) {
+      groups.push({ start, size, depth });
+      if (size > 2) { rec(start, size / 2, depth + 1); rec(start + size / 2, size / 2, depth + 1); }
+    })(1, B, 1);
+    groups.forEach(g => {
+      // best of 5 voor halve finales, finale en kleine finale van de hoofdtabel
+      const bo = kind === 'main' && g.start + g.size - 1 <= 4 ? s.settings.bestOfFinals : s.settings.bestOf;
+      for (let i = 0; i < g.size / 2; i++)
+        s.matches.push(makeMatch(s, { kind, gstart: g.start, gsize: g.size, depth: g.depth, B, n: entries.length, offset, idx: i, bo,
+          p1: g.size === B ? slots[2 * i] : null, p2: g.size === B ? slots[2 * i + 1] : null }));
+    });
+    s.matches.filter(m => m.kind === kind && m.gsize === B).forEach(m => autoBye(s, m));
+  }
+  function autoBye(s, m) {
+    if (m.winner || !m.p1 || !m.p2 || (m.p1 !== 'BYE' && m.p2 !== 'BYE')) return;
+    m.bye = true; m.winner = m.p1 === 'BYE' ? m.p2 : m.p1; m.score = null;
+    propagate(s, m);
+  }
+  function nextOf(s, m) {
+    if (m.kind === 'poule' || m.gsize === 2) return [];
+    const h = m.gsize / 2, i = m.idx >> 1;
+    return [koMatch(s, m.kind, m.gstart, h, i), koMatch(s, m.kind, m.gstart + h, h, i)];
+  }
+  function propagate(s, m) {
+    const nx = nextOf(s, m); if (!nx.length) return;
+    const key = m.idx & 1 ? 'p2' : 'p1';
+    nx[0][key] = m.winner; nx[1][key] = loserOf(m);
+    nx.forEach(n => autoBye(s, n));
+  }
+  // Maakt de plaatsen die uit m volgen weer leeg (inclusief automatisch afgehandelde vrije rondes).
+  function clearDown(s, m) {
+    const key = m.idx & 1 ? 'p2' : 'p1';
+    nextOf(s, m).forEach(n => {
+      n[key] = null;
+      if (n.bye) { n.bye = false; n.winner = null; clearDown(s, n); }
+    });
+  }
+  function downstreamBlocked(s, m) {
+    return nextOf(s, m).some(n => (n.table && !isDone(n)) || (isDone(n) && !n.bye) || (n.bye && downstreamBlocked(s, n)));
+  }
+
+  function koEntries(s) {
+    const q = s.settings.qualifiers, main = [], cons = [];
+    s.poules.forEach(p => {
+      pouleStandings(s, p.id).rows.forEach(r => {
+        const pl = s.players.find(x => x.id === r.id);
+        const e = { pid: r.id, poule: p.id, rank: r.pos };
+        if (pl.withdrawn) return;
+        if (r.pos <= q) main.push(e); else cons.push(Object.assign(e, { rank: r.pos - q }));
+      });
+    });
+    const srt = (a, b) => a.rank - b.rank || s.poules.findIndex(p => p.id === a.poule) - s.poules.findIndex(p => p.id === b.poule);
+    return { main: main.sort(srt), cons: cons.sort(srt) };
+  }
+
+  function startKnockout(s) {
+    if (!allPoulesDone(s)) throw new Error('Nog niet alle poulewedstrijden zijn gespeeld.');
+    s.matches = s.matches.filter(m => m.kind === 'poule');
+    const { main, cons } = koEntries(s);
+    createBracket(s, 'main', main, 0);
+    if (s.settings.consolation && cons.length >= 2) createBracket(s, 'cons', cons, main.length);
+    s.loneRest = s.settings.consolation && cons.length === 1 ? { pid: cons[0].pid, pos: main.length + 1 } : null;
+    s.stage = 'knockout';
+  }
+  function resetKnockout(s) {
+    s.matches = s.matches.filter(m => m.kind === 'poule');
+    s.loneRest = null;
+    s.stage = 'poules';
+  }
+
+  // Kan de uitslag van m aangepast worden zonder latere rondes te breken?
+  function canEdit(s, m) {
+    if (m.kind === 'poule') return s.stage === 'poules' ? { ok: true } : { ok: false, error: 'De eindrondes zijn al aangemaakt. Wis eerst de eindrondes om poule-uitslagen te wijzigen.' };
+    if (isDone(m) && downstreamBlocked(s, m)) return { ok: false, error: 'De volgende ronde is al bezig of gespeeld. Wis eerst die uitslag.' };
+    return { ok: true };
+  }
+
+  // result: {sets:[[a,b]...]} | {score:[a,b]} | {wo: 1|2} (1 = speler 1 geeft forfait)
+  function setResult(s, id, result) {
+    const m = s.matches.find(x => x.id === id);
+    if (!m || !isPlayable(m)) throw new Error('Deze wedstrijd kan nog niet gespeeld worden.');
+    const ce = canEdit(s, m); if (!ce.ok) throw new Error(ce.error);
+    const bo = m.bo || s.settings.bestOf, need = Math.ceil(bo / 2);
+    let r;
+    if (result.wo) r = { ok: true, score: result.wo === 1 ? [0, need] : [need, 0] };
+    else if (result.sets) r = checkSets(result.sets, bo, targets(s, m).h);
+    else r = checkScore(result.score, bo);
+    if (!r.ok) throw new Error(r.error);
+    if (m.kind !== 'poule' && isDone(m)) clearDown(s, m);
+    m.sets = result.sets ? result.sets.map(x => x.slice()) : [];
+    m.wo = result.wo || null;
+    m.score = r.score;
+    m.winner = r.score[0] > r.score[1] ? m.p1 : m.p2;
+    m.table = null;
+    m.finished = Date.now();
+    propagate(s, m);
+  }
+  function clearResult(s, id) {
+    const m = s.matches.find(x => x.id === id);
+    const ce = canEdit(s, m); if (!ce.ok) throw new Error(ce.error);
+    if (m.bye) return;
+    if (m.kind !== 'poule') clearDown(s, m);
+    Object.assign(m, { sets: [], score: null, wo: null, winner: null, finished: null });
+  }
+
+  /* ---------- Spelers tijdens het tornooi ---------- */
+  function withdraw(s, pid) {
+    const p = s.players.find(x => x.id === pid); p.withdrawn = true;
+    s.matches.forEach(m => {
+      if (m.kind !== 'poule' || isDone(m) || (m.p1 !== pid && m.p2 !== pid)) return;
+      setResult(s, m.id, { wo: m.p1 === pid ? 1 : 2 });
+    });
+  }
+  function addLatePlayer(s, name, rank, pouleId) {
+    const pl = { id: nextId(s, 'p'), name, rank };
+    s.players.push(pl);
+    const p = s.poules.find(x => x.id === pouleId);
+    const rr = Math.max(0, ...s.matches.filter(m => m.poule === pouleId).map(m => m.rr));
+    p.players.forEach((o, i) => s.matches.push(makeMatch(s, { kind: 'poule', poule: pouleId, rr: rr + 1 + i, p1: o, p2: pl.id })));
+    p.players.push(pl.id);
+    return pl;
+  }
+
+  /* ---------- Tafels ---------- */
+  function busyPlayers(s) {
+    const b = new Set();
+    s.matches.forEach(m => { if (m.table && !isDone(m)) { b.add(m.p1); b.add(m.p2); } });
+    return b;
+  }
+  function lastFinished(s) {
+    const lf = {};
+    s.matches.forEach(m => { if (m.finished && !m.bye) [m.p1, m.p2].forEach(p => lf[p] = Math.max(lf[p] || 0, m.finished)); });
+    return lf;
+  }
+  function readyMatches(s) {
+    const busy = busyPlayers(s), lf = lastFinished(s);
+    return s.matches
+      .filter(m => !isDone(m) && !m.table && isPlayable(m) && !busy.has(m.p1) && !busy.has(m.p2))
+      .map(m => ({ m, k1: m.kind === 'poule' ? m.rr : m.depth, k2: Math.max(lf[m.p1] || 0, lf[m.p2] || 0), k3: m.kind === 'cons' ? 1 : 0 }))
+      .sort((a, b) => a.k1 - b.k1 || a.k2 - b.k2 || a.k3 - b.k3 || a.m.order - b.m.order)
+      .map(x => x.m);
+  }
+  const freeTables = s => {
+    const used = new Set(s.matches.filter(m => m.table && !isDone(m)).map(m => m.table));
+    return Array.from({ length: s.settings.tables }, (_, i) => i + 1).filter(t => !used.has(t));
+  };
+  // Scheidsrechter: een poulegenoot die op dat moment niet speelt (wie het minst vaak telde eerst).
+  function pickUmpire(s, m) {
+    if (m.kind !== 'poule') return null;
+    const busy = busyPlayers(s), p = s.poules.find(x => x.id === m.poule);
+    const count = id => s.matches.filter(x => x.ump === id).length;
+    const c = p.players.filter(id => id !== m.p1 && id !== m.p2 && !busy.has(id) && !s.players.find(x => x.id === id)?.withdrawn);
+    return c.sort((a, b) => count(a) - count(b))[0] || null;
+  }
+  // Voorgift: de laagst geklasseerde speelt tot 11, de hoogst geklasseerde tot 11 + n, met
+  // n = 1 punt per 2 klassementen verschil ('half': naar beneden afgerond, 'up': naar boven).
+  // Geeft {n, h: [h1, h2], t: [doel1, doel2]}.
+  function targets(s, m) {
+    const mode = s.settings.handicap;
+    if ((mode !== 'half' && mode !== 'up') || !isPlayable(m)) return { n: 0, h: NOH, t: [11, 11] };
+    const rv = id => Math.min(rankValue(s.players.find(x => x.id === id)?.rank), RANKS.length - 1);
+    const a = rv(m.p1), b = rv(m.p2), d = Math.abs(a - b) / 2, n = mode === 'half' ? Math.floor(d) : Math.ceil(d);
+    const h = a > b ? [n, 0] : [0, n];           // hogere rankValue = lager geklasseerd
+    return { n, h, t: [11 + n - h[0], 11 + n - h[1]] };
+  }
+  function assign(s, id, table) {
+    const m = s.matches.find(x => x.id === id);
+    m.table = table; m.started = Date.now(); m.ump = pickUmpire(s, m);
+  }
+  function autoAssign(s) {
+    let n = 0;
+    for (const t of freeTables(s)) {
+      const r = readyMatches(s)[0];
+      if (!r) break;
+      assign(s, r.id, t); n++;
+    }
+    return n;
+  }
+
+  // Naam van de groep waarin m speelt, bv. "Kwartfinale", "Plaats 9-16", "Om plaats 3"
+  function groupLabel(m) {
+    const off = m.offset || 0, a = m.gstart + off, b = Math.min(m.gstart + m.gsize - 1, m.n || 1e9) + off;
+    if (m.gstart === 1 && m.kind === 'main') return m.gsize === 2 ? 'Finale' : m.gsize === 4 ? 'Halve finale' : m.gsize === 8 ? 'Kwartfinale' : `1/${m.gsize / 2} finale`;
+    return m.gsize === 2 || a === b ? `Om plaats ${a}` : `Plaats ${a}-${b}`;
+  }
+  // Eindplaatsen tot nu toe: {positie: pid} (vrije plaatsen weggelaten)
+  function placements(s, kind) {
+    const out = [];
+    s.matches.filter(m => m.kind === kind && m.gsize === 2 && isDone(m)).forEach(m => {
+      [[m.gstart, m.winner], [m.gstart + 1, loserOf(m)]].forEach(([pos, pid]) => { if (pid && pid !== 'BYE') out.push({ pos: pos + (m.offset || 0), pid }); });
+    });
+    return out.sort((a, b) => a.pos - b.pos);
+  }
+  // Volledig eindklassement tot nu toe (hoofd- en troosttabel samen). Vrije plaatsen tellen niet mee.
+  function finalRanking(s) {
+    const res = [];
+    ['main', 'cons'].forEach(kind => {
+      const off = (s.matches.find(m => m.kind === kind) || {}).offset || 0;
+      const slots = [];
+      s.matches.filter(m => m.kind === kind && m.gsize === 2 && isDone(m)).forEach(m => {
+        slots.push({ raw: m.gstart, pid: m.winner }, { raw: m.gstart + 1, pid: loserOf(m) });
+      });
+      slots.sort((a, b) => a.raw - b.raw);
+      let byes = 0;
+      slots.forEach(x => { if (x.pid === 'BYE') byes++; else res.push({ pos: x.raw - byes + off, pid: x.pid, kind }); });
+    });
+    if (s.loneRest) res.push({ pos: s.loneRest.pos, pid: s.loneRest.pid, kind: 'cons' });
+    return res;
+  }
+  function podium(s, kind) {
+    const off = (s.matches.find(m => m.kind === kind) || {}).offset || 0;
+    const pl = placements(s, kind), get = p => pl.find(x => x.pos === p + off)?.pid;
+    if (!get(1)) return null;
+    return { first: get(1), second: get(2), third: get(3) ? [get(3)] : [] };
+  }
+
+  return { RANKS, rankValue, newState, pouleSizes, drawPoules, roundRobin, startPoules, parseSet, validSet, checkSets,
+    checkScore, pouleStandings, allPoulesDone, seedOrder, meetRound, buildBracket, clubBracket, CLUB_TABLES, koEntries, startKnockout, resetKnockout,
+    setResult, clearResult, canEdit, withdraw, addLatePlayer, readyMatches, freeTables, assign, autoAssign, busyPlayers,
+    targets, pickUmpire, maxDepth, groupLabel, placements, finalRanking, podium, isDone, isPlayable, nextId, pouleName };
+})();
+window.TT = TT;
+
+/* =========================================================================
+   Opslag
+   ========================================================================= */
+const KEY = 'tt-clubkampioenschap-v1', HKEY = KEY + '-historiek';
+let state, history = [];
+function load() {
+  try { state = JSON.parse(localStorage.getItem(KEY)) || TT.newState(); } catch (e) { state = TT.newState(); }
+  try { history = JSON.parse(localStorage.getItem(HKEY)) || []; } catch (e) { history = []; }
+}
+let storageOk = true;
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(HKEY, JSON.stringify(history.slice(-40))); storageOk = true; }
+  catch (e) { storageOk = false; }
+}
+function mutate(fn) {
+  const before = JSON.stringify(state);
+  try { fn(state); }
+  catch (e) { state = JSON.parse(before); toast(e.message, true); render(); return false; }
+  history.push(before); if (history.length > 40) history.shift();
+  persist(); render();
+  return true;
+}
+
+/* =========================================================================
+   UI
+   ========================================================================= */
+const $app = document.getElementById('app'), $modal = document.getElementById('modal');
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pname = id => id === 'BYE' ? 'vrij' : (state.players.find(p => p.id === id)?.name ?? '');
+const prank = id => state.players.find(p => p.id === id)?.rank || '';
+let tab = 'spelers', drawSel = null;
+const isDisplay = () => location.hash === '#scherm';
+
+function toast(msg, bad) {
+  const d = document.createElement('div');
+  d.textContent = msg;
+  d.style.cssText = `position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:${bad ? '#c62828' : '#18202f'};color:#fff;padding:10px 16px;border-radius:8px;z-index:20;max-width:90vw`;
+  document.body.appendChild(d); setTimeout(() => d.remove(), bad ? 5000 : 2500);
+}
+
+function tabsFor() {
+  const t = [['spelers', 'Spelers']];
+  if (state.stage !== 'setup') t.push(['poules', 'Poules']);
+  if (state.stage === 'poules' || state.stage === 'knockout') t.push(['wedstrijden', 'Wedstrijden & tafels']);
+  if (state.stage === 'poules' || state.stage === 'knockout') t.push(['tabel', 'Eindrondes']);
+  t.push(['backup', 'Instellingen & back-up']);
+  return t;
+}
+
+function render() {
+  if (isDisplay()) { document.body.classList.add('display'); renderDisplay(); return; }
+  document.body.classList.remove('display');
+  document.getElementById('title').textContent = state.name || 'Clubkampioenschap';
+  document.title = state.name || 'Clubkampioenschap';
+  const tabs = tabsFor();
+  if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
+  document.getElementById('nav').innerHTML = tabs.map(([k, l]) => `<button data-action="tab" data-tab="${k}" class="${k === tab ? 'active' : ''}">${l}</button>`).join('');
+  document.getElementById('undoBtn').disabled = !history.length;
+  let html = storageOk ? '' : '<div class="notice">⚠️ Opslaan in de browser lukt niet. Download regelmatig een back-up (Instellingen & back-up).</div>';
+  html += ({ spelers: viewPlayers, poules: viewPoules, wedstrijden: viewMatches, tabel: viewKnockout, backup: viewBackup })[tab]();
+  $app.innerHTML = html;
+}
+
+/* ---------- Spelers ---------- */
+function rankSelect(name, val) {
+  return `<select name="${name}"><option value="">–</option>${TT.RANKS.map(r => `<option ${r === val ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
+}
+function viewPlayers() {
+  const s = state, setup = s.stage === 'setup';
+  const active = s.players.filter(p => !p.withdrawn).length;
+  let h = '';
+  if (setup) {
+    h += `<div class="card"><h2>Instellingen</h2><div class="row">
+      <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label>
+      <label>Wedstrijden <select data-set="bestOf">${[3, 5, 7].map(b => `<option value="${b}" ${s.settings.bestOf === b ? 'selected' : ''}>${(b + 1) / 2} winnende sets</option>`).join('')}</select></label>
+      <label>Vanaf halve finale <select data-set="bestOfFinals">${[3, 5, 7].map(b => `<option value="${b}" ${s.settings.bestOfFinals === b ? 'selected' : ''}>${(b + 1) / 2} winnende sets</option>`).join('')}</select></label>
+      <label>Tafels <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
+      <label>Poulegrootte <select data-set="pouleSize">${[3, 4, 5, 6].map(b => `<option value="${b}" ${s.settings.pouleSize === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
+      <label>Door naar hoofdtabel <select data-set="qualifiers">${[1, 2, 3].map(b => `<option value="${b}" ${s.settings.qualifiers === b ? 'selected' : ''}>top ${b}</option>`).join('')}</select></label>
+      <label><input type="checkbox" data-set="consolation" ${s.settings.consolation ? 'checked' : ''}> Troosttabel voor de anderen</label>
+      <label>Voorgift <select data-set="handicap"><option value="none" ${!['half', 'up'].includes(s.settings.handicap) ? 'selected' : ''}>geen</option><option value="half" ${s.settings.handicap === 'half' ? 'selected' : ''}>sterkste speelt verder dan 11: +1 per 2 klassementen (1 klassement = 0)</option><option value="up" ${s.settings.handicap === 'up' ? 'selected' : ''}>sterkste speelt verder dan 11: punten van de VTTL-tabel (1 klassement = 1)</option></select></label>
+    </div></div>`;
+    h += `<div class="card"><h2>Spelers toevoegen</h2>
+      <form data-form="add-player" class="row"><input name="name" placeholder="Naam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
+      <details style="margin-top:10px"><summary>Meerdere spelers tegelijk plakken</summary>
+        <p class="hint">Eén speler per lijn. Klassement mag erachter, gescheiden door ; of tab of komma. Bv. <code>Jan Peeters; C4</code></p>
+        <form data-form="bulk"><textarea name="bulk" placeholder="Jan Peeters; C4&#10;An Janssens; D2&#10;Piet"></textarea><div class="row" style="margin-top:6px"><button class="primary">Toevoegen</button></div></form>
+      </details></div>`;
+  }
+  const sizes = TT.pouleSizes(active, s.settings.pouleSize);
+  h += `<div class="card"><h2>Deelnemers (${active})</h2>`;
+  if (setup) h += `<p class="muted small">${active >= 3 ? `Dit geeft ${sizes.length} poule${sizes.length > 1 ? 's' : ''}: ${sizes.join(', ')} spelers.` : 'Minstens 3 spelers nodig.'}</p>`;
+  h += `<table><tr><th>#</th><th>Naam</th><th>Klassement</th>${s.stage !== 'setup' ? '<th>Poule</th>' : ''}<th></th></tr>`;
+  s.players.forEach((p, i) => {
+    const poule = s.poules.find(x => x.players.includes(p.id))?.id || '';
+    h += `<tr><td class="muted">${i + 1}</td><td>${setup ? `<input data-pedit="name" data-id="${p.id}" value="${esc(p.name)}">` : esc(p.name)}${p.withdrawn ? ' <span class="pill">afgemeld</span>' : ''}</td>
+      <td>${setup ? rankSelect('r', p.rank).replace('<select', `<select data-pedit="rank" data-id="${p.id}"`) : esc(p.rank || '–')}</td>
+      ${s.stage !== 'setup' ? `<td>${poule}</td>` : ''}
+      <td style="text-align:right">${setup ? `<button class="sm danger" data-action="del-player" data-id="${p.id}">Verwijderen</button>` :
+        (s.stage === 'poules' && !p.withdrawn ? `<button class="sm danger" data-action="withdraw" data-id="${p.id}">Afmelden</button>` : '')}</td></tr>`;
+  });
+  h += `</table>`;
+  if (setup) h += `<div class="row" style="margin-top:12px"><button class="primary" data-action="draw" ${active < 3 ? 'disabled' : ''}>Loting maken →</button></div>`;
+  h += `</div>`;
+  if (s.stage === 'poules') {
+    h += `<div class="card"><h2>Laatkomer toevoegen</h2><form data-form="late" class="row"><input name="name" placeholder="Naam" required> ${rankSelect('rank', '')}
+      <select name="poule">${s.poules.map(p => `<option value="${p.id}">Poule ${p.id} (${p.players.length})</option>`).join('')}</select>
+      <button class="primary">Toevoegen</button></form><p class="hint">De speler komt in de gekozen poule en krijgt wedstrijden tegen iedereen uit die poule.</p></div>`;
+  }
+  return h;
+}
+
+/* ---------- Poules ---------- */
+function standingTable(pid, compact) {
+  const st = TT.pouleStandings(state, pid), q = state.settings.qualifiers;
+  let h = `<table><tr><th>#</th><th>Speler</th><th class="num">Gesp</th><th class="num">W</th><th class="num">V</th>${compact ? '' : '<th class="num">Ptn</th>'}<th class="num">Sets</th>${compact ? '' : '<th class="num">Punten</th>'}</tr>`;
+  st.rows.forEach(r => {
+    const wd = state.players.find(p => p.id === r.id)?.withdrawn;
+    h += `<tr class="${r.pos <= q ? 'q' : ''}"><td>${r.pos}</td><td>${esc(pname(r.id))} <span class="muted small">${esc(prank(r.id))}</span>${wd ? ' <span class="pill">afgemeld</span>' : ''}</td>
+      <td class="num">${r.played}</td><td class="num">${r.won}</td><td class="num">${r.lost}</td>${compact ? '' : `<td class="num">${r.mp}</td>`}
+      <td class="num">${r.sw}-${r.sl}</td>${compact ? '' : `<td class="num">${r.pw}-${r.pl}</td>`}</tr>`;
+  });
+  return h + '</table>';
+}
+function matchLine(m, opts = {}) {
+  const done = TT.isDone(m);
+  const n1 = esc(pname(m.p1)), n2 = esc(pname(m.p2));
+  const sc = done ? `${m.score[0]}-${m.score[1]}` : (m.table ? `<span class="pill play">tafel ${m.table}</span>` : '');
+  const detail = done ? (m.wo ? `forfait` : m.sets.map(x => x.join('-')).join(', ')) : '';
+  return `<div class="match ${done ? 'done' : ''}">
+    <div class="names"><span class="${done && m.winner === m.p1 ? 'w' : ''}">${n1}</span> – <span class="${done && m.winner === m.p2 ? 'w' : ''}">${n2}</span>
+      ${detail ? `<div class="muted small">${esc(detail)}</div>` : ''}${opts.label ? `<div class="muted small">${opts.label}</div>` : ''}</div>
+    <div class="score">${sc}</div>
+    ${opts.noBtn ? '' : `<button class="sm noprint" data-action="score" data-id="${m.id}">${done ? 'Wijzig' : 'Uitslag'}</button>`}</div>`;
+}
+function viewPoules() {
+  const s = state;
+  if (s.stage === 'draw') {
+    let h = `<div class="notice">Controleer de verdeling (slangsysteem op klassement; bij gelijk klassement telt de volgorde van je lijst). Klik op twee spelers om ze te wisselen. Klaar? Klik op <b>Poules starten</b>.</div>
+      <div class="row noprint" style="margin-bottom:14px"><button data-action="back-setup">← Terug naar spelers</button><button data-action="redraw-snake">Slangsysteem (standaard)</button><button data-action="redraw">Loten binnen de potten</button><button class="primary" data-action="start-poules">Poules starten →</button></div><div class="grid">`;
+    s.poules.forEach(p => {
+      h += `<div class="card"><h3>Poule ${p.id}</h3>${p.players.map(id => `<div class="drawp ${drawSel === id ? 'sel' : ''}" data-action="draw-swap" data-id="${id}">${esc(pname(id))} <span class="muted small">${esc(prank(id))}</span></div>`).join('')}</div>`;
+    });
+    return h + '</div>';
+  }
+  let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="print">🖨 Afdrukken (reserve op papier)</button><button data-action="slips-poules">🖨 Wedstrijdbriefjes poules</button>
+    <span class="muted small">Blauwe rijen gaan door naar de hoofdtabel. Rangschikking: matchpunten (winst 2, verlies 1, forfait 0), daarna onderling resultaat.</span></div><div class="grid">`;
+  s.poules.forEach(p => {
+    const ms = s.matches.filter(m => m.kind === 'poule' && m.poule === p.id);
+    const done = ms.filter(TT.isDone).length;
+    h += `<div class="card"><h3>Poule ${p.id} <span class="pill ${done === ms.length ? 'ok' : ''}">${done}/${ms.length}</span></h3>${standingTable(p.id)}<div style="margin-top:8px">${ms.map(m => matchLine(m)).join('')}</div></div>`;
+  });
+  return h + '</div>';
+}
+
+/* ---------- Wedstrijden & tafels ---------- */
+function extraInfo(m) {
+  const tg = TT.targets(state, m), out = [];
+  if (tg.n) out.push(`${esc(pname(m.p1))} tot ${tg.t[0]} · ${esc(pname(m.p2))} tot ${tg.t[1]}`);
+  if (m.ump && !TT.isDone(m)) out.push(`Telt: ${esc(pname(m.ump))}`);
+  return out.length ? `<div class="small"><b>${out.join(' · ')}</b></div>` : '';
+}
+function slipsHtml(ms) {
+  return ms.map(m => {
+    const tg = TT.targets(state, m), bo = m.bo || state.settings.bestOf;
+    return `<div class="slip"><div class="row" style="justify-content:space-between"><b>${mLabel(m)}</b><span>Tafel: ${m.table || '____'}</span></div>
+      <table><tr><th></th>${Array.from({ length: bo }, (_, i) => `<th>Set ${i + 1}</th>`).join('')}<th>Sets</th></tr>
+      ${[m.p1, m.p2].map((p, i) => `<tr><td class="sn">${esc(pname(p))} <span class="small">${esc(prank(p))}</span>${tg.n ? ` <b>tot ${tg.t[i]}</b>` : ''}</td>${'<td class="box"></td>'.repeat(bo + 1)}</tr>`).join('')}</table>
+      <div class="small">${(bo + 1) / 2} winnende sets${tg.n ? '' : ' tot 11'}${m.ump ? ` · Telt: ${esc(pname(m.ump))}` : ''} · Winnaar brengt dit briefje terug</div></div>`;
+  }).join('');
+}
+function printSlips(ms) {
+  if (!ms.length) { toast('Geen wedstrijden om af te drukken.', true); return; }
+  document.getElementById('slips').innerHTML = slipsHtml(ms);
+  document.body.classList.add('print-slips');
+  const done = () => { document.body.classList.remove('print-slips'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
+function mLabel(m) {
+  if (m.kind === 'poule') return `Poule ${m.poule}`;
+  return `${m.kind === 'cons' ? 'Troosttabel' : 'Hoofdtabel'} · ${TT.groupLabel(m)}`;
+}
+function viewMatches() {
+  const s = state, ready = TT.readyMatches(s), free = TT.freeTables(s);
+  const playing = s.matches.filter(m => m.table && !TT.isDone(m));
+  let h = '';
+  if (s.stage === 'poules' && TT.allPoulesDone(s)) h += `<div class="notice ok">Alle poulewedstrijden zijn gespeeld. <button class="primary" data-action="start-ko">Eindrondes aanmaken →</button></div>`;
+  const pm = TT.podium(s, 'main');
+  if (pm) h += `<div class="notice ok champ">🏆 Clubkampioen: ${esc(pname(pm.first))}</div>`;
+  h += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Tafels</h2>
+    <span class="row"><button data-action="slips-playing" ${playing.length ? '' : 'disabled'}>🖨 Briefjes lopende wedstrijden</button><button class="primary" data-action="auto" ${!free.length || !ready.length ? 'disabled' : ''}>Vrije tafels vullen</button></span></div><div class="tables" style="margin-top:10px">`;
+  for (let t = 1; t <= s.settings.tables; t++) {
+    const m = playing.find(x => x.table === t);
+    h += m ? `<div class="tbl busy"><div class="tno">Tafel ${t}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}
+        <div class="row"><button class="sm primary" data-action="score" data-id="${m.id}">Uitslag</button><button class="sm" data-action="unassign" data-id="${m.id}">Terug naar wachtrij</button></div></div>`
+      : `<div class="tbl"><div class="tno">Tafel ${t}</div><div class="muted">Vrij</div></div>`;
+  }
+  h += `</div></div>`;
+  h += `<div class="card"><h2>Klaar om te spelen (${ready.length})</h2>`;
+  if (!ready.length) h += `<p class="muted">Geen wedstrijden klaar. ${playing.length ? 'Wacht op lopende wedstrijden.' : ''}</p>`;
+  ready.slice(0, 40).forEach(m => {
+    h += `<div class="match"><div class="names">${esc(pname(m.p1))} – ${esc(pname(m.p2))}<div class="muted small">${mLabel(m)}</div></div>
+      ${free.length ? `<select data-assign="${m.id}"><option value="">Naar tafel…</option>${free.map(t => `<option value="${t}">Tafel ${t}</option>`).join('')}</select>` : ''}
+      <button class="sm" data-action="score" data-id="${m.id}">Uitslag</button></div>`;
+  });
+  h += `</div>`;
+  const waiting = s.matches.filter(m => !TT.isDone(m) && !m.table && TT.isPlayable(m) && !ready.includes(m));
+  if (waiting.length) h += `<div class="card"><h2>Wacht op speler die nog bezig is (${waiting.length})</h2>${waiting.slice(0, 20).map(m => matchLine(m, { label: mLabel(m), noBtn: true })).join('')}</div>`;
+  const recent = s.matches.filter(m => TT.isDone(m) && !m.bye).sort((a, b) => b.finished - a.finished).slice(0, 12);
+  if (recent.length) h += `<div class="card"><h2>Laatst gespeeld</h2>${recent.map(m => matchLine(m, { label: mLabel(m) })).join('')}</div>`;
+  return h;
+}
+
+/* ---------- Eindrondes ---------- */
+function bmHtml(m, clickable) {
+  const done = TT.isDone(m);
+  const side = (p, i) => {
+    const nm = p ? (p === 'BYE' ? '<span class="tbd">vrij</span>' : esc(pname(p))) : '<span class="tbd">…</span>';
+    const sc = done && !m.bye ? m.score[i] : '';
+    return `<div class="bp ${done && m.winner === p ? 'w' : ''}"><span>${nm}</span><span>${sc}</span></div>`;
+  };
+  const can = clickable && TT.isPlayable(m) && !m.bye;
+  return `<div class="bm ${done ? 'done' : ''} ${m.table && !done ? 'playing' : ''} ${m.bye ? 'bye' : ''}" ${can ? `data-action="score" data-id="${m.id}"` : ''}
+    title="${m.table && !done ? 'Tafel ' + m.table : ''}">${side(m.p1, 0)}${side(m.p2, 1)}</div>`;
+}
+// Eén "ketting": groep (start,size) en daarna telkens de winnaarshelft, tot de wedstrijd om plaats start.
+function chainHtml(kind, start, size, clickable) {
+  let h = '<div class="bracket">', any = false;
+  for (let g = size; g >= 2; g /= 2) {
+    const ms = state.matches.filter(m => m.kind === kind && m.gstart === start && m.gsize === g).sort((a, b) => a.idx - b.idx);
+    const vis = ms.filter(m => !(m.p1 === 'BYE' && m.p2 === 'BYE') && !(m.bye && m.gsize !== m.B));
+    if (!vis.length) continue;
+    any = true;
+    h += `<div class="bround"><h4>${TT.groupLabel(ms[0])}${ms[0].bo !== state.settings.bestOf ? ` · best of ${ms[0].bo}` : ''}</h4>${vis.map(m => bmHtml(m, clickable)).join('')}</div>`;
+  }
+  return any ? h + '</div>' : '';
+}
+function chainStarts(kind) {
+  const B = state.matches.find(m => m.kind === kind)?.B;
+  if (!B) return [];
+  const out = [[1, B]];
+  (function rec(start, size) { if (size <= 2) return; out.push([start + size / 2, size / 2]); rec(start, size / 2); rec(start + size / 2, size / 2); })(1, B);
+  return out.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+}
+function bracketHtml(kind, clickable = true, onlyMain = false) {
+  const chains = chainStarts(kind);
+  if (!chains.length) return '<p class="muted">Geen tabel.</p>';
+  return (onlyMain ? chains.slice(0, 1) : chains).map(([st, sz], i) => {
+    const c = chainHtml(kind, st, sz, clickable);
+    return c ? (i ? '<h3 style="margin:16px 0 6px">Plaatsingswedstrijden</h3>'.repeat(i === 1 ? 1 : 0) : '') + `<div style="margin-bottom:10px">${c}</div>` : '';
+  }).join('');
+}
+function rankingHtml() {
+  const fr = TT.finalRanking(state);
+  if (!fr.length) return '';
+  return `<div class="card"><h2>Eindklassement${state.matches.some(m => m.kind !== 'poule' && !TT.isDone(m)) ? ' (voorlopig)' : ''}</h2>
+    <div style="columns:3 220px">${fr.map(x => `<div>${x.pos}. ${esc(pname(x.pid))}</div>`).join('')}</div></div>`;
+}
+function podiumHtml(kind) {
+  const p = TT.podium(state, kind);
+  if (!p) return '';
+  return `<div class="notice ok"><div class="champ">🏆 ${esc(pname(p.first))}</div>2de: ${esc(pname(p.second))}${p.third.length ? ` · 3de: ${p.third.map(x => esc(pname(x))).join(' en ')}` : ''}</div>`;
+}
+function viewKnockout() {
+  const s = state;
+  if (s.stage === 'poules') {
+    const left = s.matches.filter(m => m.kind === 'poule' && !TT.isDone(m)).length;
+    return `<div class="card"><h2>Eindrondes</h2>${left ? `<p>Nog ${left} poulewedstrijd${left > 1 ? 'en' : ''} te spelen. Daarna kun je de eindrondes aanmaken.</p>` :
+      `<p>Alle poules zijn klaar.</p><button class="primary" data-action="start-ko">Eindrondes aanmaken →</button>`}
+      <p class="muted small">Top ${s.settings.qualifiers} van elke poule gaat naar de hoofdtabel${s.settings.consolation ? ', de anderen naar de troosttabel' : ''}. Iedereen speelt door tot zijn eindplaats vaststaat. De opstelling volgt de vaste eindrondetabellen van de club (2 tot 8 poules).</p></div>`;
+  }
+  const anyKo = s.matches.some(m => m.kind !== 'poule' && TT.isDone(m) && !m.bye);
+  let h = `<div class="card"><h2>Hoofdtabel</h2>${podiumHtml('main')}${bracketHtml('main')}<p class="hint">Klik op een wedstrijd om de uitslag in te geven.</p></div>`;
+  if (s.matches.some(m => m.kind === 'cons')) h += `<div class="card"><h2>Troosttabel</h2>${podiumHtml('cons')}${bracketHtml('cons')}</div>`;
+  h += rankingHtml();
+  h += `<div class="card noprint"><button class="primary" data-action="print">🖨 Afdrukken</button> <button class="danger" data-action="reset-ko">Eindrondes wissen</button> <span class="hint">${anyKo ? 'Let op: dit wist ook de al gespeelde eindronde-uitslagen.' : 'Bv. om nog een poule-uitslag te verbeteren.'}</span></div>`;
+  return h;
+}
+
+/* ---------- Back-up ---------- */
+function viewBackup() {
+  const s = state;
+  return `<div class="card"><h2>Back-up</h2>
+    <p>Alles wordt automatisch in deze browser bewaard (ook zonder internet). Download af en toe een back-up, bv. na de poules. Met een back-up kun je verder op een andere laptop.</p>
+    <div class="row"><button class="primary" data-action="export">⬇ Back-up downloaden</button>
+    <label class="btn">⬆ Back-up laden <input type="file" accept=".json,application/json" data-action="import" style="display:none"></label></div></div>
+    <div class="card"><h2>Instellingen tijdens het tornooi</h2><div class="row">
+      <label>Aantal tafels <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
+      <label>Voorgift <select data-set="handicap"><option value="none" ${!['half', 'up'].includes(s.settings.handicap) ? 'selected' : ''}>geen</option><option value="half" ${s.settings.handicap === 'half' ? 'selected' : ''}>sterkste speelt verder dan 11: +1 per 2 klassementen (1 klassement = 0)</option><option value="up" ${s.settings.handicap === 'up' ? 'selected' : ''}>sterkste speelt verder dan 11: punten van de VTTL-tabel (1 klassement = 1)</option></select></label>
+      <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label></div>
+      <p class="hint">Wedstrijdformaat: ${(s.settings.bestOf + 1) / 2} winnende sets, vanaf halve finale ${(s.settings.bestOfFinals + 1) / 2} · top ${s.settings.qualifiers} door · troosttabel ${s.settings.consolation ? 'ja' : 'nee'}</p></div>
+    <div class="card"><h2>Tweede scherm</h2><p>Open <b>🖥 Scherm</b> (rechtsboven) en sleep dat venster naar de tv of beamer (F11 voor volledig scherm). Het volgt automatisch alle uitslagen die je hier ingeeft.</p></div>
+    <div class="card"><h2>Opnieuw beginnen</h2><p class="muted">Wist alle spelers en uitslagen. Download eerst een back-up als je die wilt bewaren.</p><button class="danger" data-action="reset-all">Alles wissen</button></div>`;
+}
+
+/* ---------- Tv / beamer ---------- */
+function renderDisplay() {
+  const s = state;
+  const playing = s.matches.filter(m => m.table && !TT.isDone(m)).sort((a, b) => a.table - b.table);
+  const next = TT.readyMatches(s).slice(0, Math.max(4, s.settings.tables));
+  const now = new Date();
+  let h = `<div class="disp-head"><h1>${esc(s.name)}</h1><div class="disp-clock">${now.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' })}</div></div>`;
+  const pm = TT.podium(s, 'main');
+  if (pm) h += `<div class="card" style="text-align:center"><div style="font-size:48px">🏆 ${esc(pname(pm.first))}</div><div class="muted">Clubkampioen · 2de ${esc(pname(pm.second))}${pm.third.length ? ' · 3de ' + pm.third.map(x => esc(pname(x))).join(' en ') : ''}</div></div>`;
+  if (playing.length || next.length) {
+    h += `<div class="grid" style="grid-template-columns:2fr 1fr"><div class="card"><h2>Nu aan tafel</h2><div class="tables">${playing.map(m => `<div class="tbl busy"><div class="tno">Tafel ${m.table}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}</div>`).join('') || '<p class="muted">–</p>'}</div></div>
+      <div class="card"><h2>Volgende</h2>${next.map(m => `<div class="match"><div class="names">${esc(pname(m.p1))} – ${esc(pname(m.p2))}<div class="muted small">${mLabel(m)}</div></div></div>`).join('') || '<p class="muted">–</p>'}</div></div>`;
+  }
+  if (s.stage === 'knockout') {
+    h += `<div class="card"><h2>Hoofdtabel</h2>${bracketHtml('main', false, true)}</div>`;
+    if (s.matches.some(m => m.kind === 'cons')) h += `<div class="card"><h2>Troosttabel</h2>${bracketHtml('cons', false, true)}</div>`;
+    h += rankingHtml();
+  } else if (s.poules.length) {
+    h += `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(420px,1fr))">${s.poules.map(p => `<div class="card"><h3>Poule ${p.id}</h3>${standingTable(p.id, true)}</div>`).join('')}</div>`;
+  } else h += `<div class="card"><p class="muted">Het tornooi start binnenkort.</p></div>`;
+  $app.innerHTML = h;
+}
+
+/* ---------- Uitslag-venster ---------- */
+function openScore(id) {
+  const m = state.matches.find(x => x.id === id);
+  if (!m || !TT.isPlayable(m)) return;
+  const ce = TT.canEdit(state, m);
+  if (!ce.ok) { toast(ce.error, true); return; }
+  const bo = m.bo || state.settings.bestOf, need = Math.ceil(bo / 2), tg = TT.targets(state, m);
+  const quick = [];
+  for (let k = 0; k < need; k++) quick.push([need, k]);
+  for (let k = need - 1; k >= 0; k--) quick.push([k, need]);
+  $modal.innerHTML = `<div class="modal-bg" data-action="close-modal"><div class="modal" role="dialog">
+    <h2>${esc(pname(m.p1))} – ${esc(pname(m.p2))}</h2><div class="muted small">${mLabel(m)} · ${need} winnende sets${m.table ? ' · tafel ' + m.table : ''}</div>${extraInfo(m)}
+    <form data-form="score" data-id="${m.id}" autocomplete="off">
+      <div class="sets">${Array.from({ length: bo }, (_, i) => `<span>Set ${i + 1}</span><input name="s${i}" value="${m.sets[i] ? m.sets[i].join('-') : ''}" inputmode="text" placeholder="${i === 0 ? `bv. ${tg.t[0]}-7 of 7` : ''}">`).join('')}</div>
+      <div class="hint">${tg.n ? `Voorgift: ${esc(pname(m.p1))} speelt tot <b>${tg.t[0]}</b>, ${esc(pname(m.p2))} tot <b>${tg.t[1]}</b>. Typ de echte stand, bv. <b>${tg.t[0]}-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = gewonnen met 7 tegen, <b>-9</b> = verloren met zelf 9.`
+        : `Typ <b>11-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.`}</div>
+      <div class="err" id="scoreErr"></div>
+      <div class="row"><button class="primary">Opslaan</button><button type="button" data-action="close-modal">Annuleren</button>
+        ${TT.isDone(m) ? `<button type="button" class="danger" data-action="clear-score" data-id="${m.id}">Uitslag wissen</button>` : ''}</div>
+      <details style="margin-top:12px"><summary>Enkel setscore of forfait</summary>
+        <div class="row" style="margin-top:8px">${quick.map(([a, b]) => `<button type="button" class="sm" data-action="quick-score" data-id="${m.id}" data-a="${a}" data-b="${b}">${a}-${b}</button>`).join('')}</div>
+        <div class="row" style="margin-top:8px"><button type="button" class="sm" data-action="wo" data-id="${m.id}" data-wo="1">Forfait ${esc(pname(m.p1))}</button><button type="button" class="sm" data-action="wo" data-id="${m.id}" data-wo="2">Forfait ${esc(pname(m.p2))}</button></div>
+      </details>
+    </form></div></div>`;
+  setTimeout(() => $modal.querySelector('input[name=s0]')?.focus(), 0);
+}
+const closeModal = () => { $modal.innerHTML = ''; };
+
+/* ---------- Events ---------- */
+function addPlayers(list) {
+  mutate(s => list.forEach(({ name, rank }) => { if (name) s.players.push({ id: TT.nextId(s, 'p'), name, rank }); }));
+}
+document.addEventListener('submit', e => {
+  const f = e.target, kind = f.dataset.form; if (!kind) return;
+  e.preventDefault();
+  const fd = new FormData(f);
+  if (kind === 'add-player') { addPlayers([{ name: fd.get('name').trim(), rank: fd.get('rank') }]); setTimeout(() => $app.querySelector('form[data-form=add-player] input[name=name]')?.focus(), 0); }
+  if (kind === 'bulk') {
+    const list = String(fd.get('bulk')).split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
+      const parts = l.split(/[;\t,]/).map(x => x.trim());
+      let rank = '';
+      if (parts.length > 1 && TT.RANKS.includes(parts[parts.length - 1].toUpperCase())) rank = parts.pop().toUpperCase();
+      return { name: parts.join(' ').trim(), rank };
+    });
+    addPlayers(list);
+  }
+  if (kind === 'late') {
+    const name = fd.get('name').trim(); if (!name) return;
+    mutate(s => TT.addLatePlayer(s, name, fd.get('rank'), fd.get('poule')));
+  }
+  if (kind === 'score') {
+    const id = f.dataset.id, sets = [];
+    const bo = state.matches.find(x => x.id === id)?.bo || state.settings.bestOf;
+    const tgh = TT.targets(state, state.matches.find(x => x.id === id)).h;
+    for (let i = 0; i < bo; i++) {
+      const raw = fd.get('s' + i), p = TT.parseSet(raw, tgh);
+      if (p === undefined) { document.getElementById('scoreErr').textContent = `Set ${i + 1}: "${raw}" begrijp ik niet.`; return; }
+      if (p) sets.push(p);
+    }
+    const chk = TT.checkSets(sets.map(x => x.slice()), bo, tgh);
+    if (!chk.ok) { document.getElementById('scoreErr').textContent = chk.error; return; }
+    if (mutate(s => TT.setResult(s, id, { sets }))) closeModal();
+  }
+});
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]'); if (!el) return;
+  const a = el.dataset.action, id = el.dataset.id;
+  if (a === 'close-modal') { if (e.target === el) closeModal(); return; }
+  if (el.tagName === 'INPUT') return;
+  switch (a) {
+    case 'tab': tab = el.dataset.tab; drawSel = null; render(); window.scrollTo(0, 0); break;
+    case 'undo': if (history.length) { state = JSON.parse(history.pop()); persist(); render(); toast('Ongedaan gemaakt'); } break;
+    case 'open-display': window.open(location.pathname + '#scherm', 'tt-scherm'); break;
+    case 'del-player': mutate(s => { s.players = s.players.filter(p => p.id !== id); }); break;
+    case 'draw': mutate(s => { s.poules = TT.drawPoules(s.players.filter(p => !p.withdrawn), s.settings.pouleSize); s.stage = 'draw'; }); tab = 'poules'; render(); break;
+    case 'redraw': mutate(s => { s.poules = TT.drawPoules(s.players.filter(p => !p.withdrawn), s.settings.pouleSize, true); }); break;
+    case 'redraw-snake': mutate(s => { s.poules = TT.drawPoules(s.players.filter(p => !p.withdrawn), s.settings.pouleSize); }); break;
+    case 'back-setup': mutate(s => { s.stage = 'setup'; s.poules = []; }); tab = 'spelers'; render(); break;
+    case 'draw-swap':
+      if (!drawSel) { drawSel = id; render(); break; }
+      if (drawSel === id) { drawSel = null; render(); break; }
+      { const a1 = drawSel; drawSel = null;
+        mutate(s => { const pa = s.poules.find(p => p.players.includes(a1)), pb = s.poules.find(p => p.players.includes(id));
+          pa.players[pa.players.indexOf(a1)] = id; pb.players[pb.players.indexOf(id)] = a1; }); }
+      break;
+    case 'start-poules': mutate(s => TT.startPoules(s)); tab = 'wedstrijden'; render(); break;
+    case 'withdraw': if (confirm(`${pname(id)} afmelden? Alle resterende poulewedstrijden worden forfait.`)) mutate(s => TT.withdraw(s, id)); break;
+    case 'score': openScore(id); break;
+    case 'quick-score': if (mutate(s => TT.setResult(s, id, { score: [+el.dataset.a, +el.dataset.b] }))) closeModal(); break;
+    case 'wo': if (mutate(s => TT.setResult(s, id, { wo: +el.dataset.wo }))) closeModal(); break;
+    case 'clear-score': if (mutate(s => TT.clearResult(s, id))) closeModal(); break;
+    case 'auto': mutate(s => TT.autoAssign(s)); break;
+    case 'unassign': mutate(s => { const m = s.matches.find(x => x.id === id); m.table = null; m.started = null; m.ump = null; }); break;
+    case 'start-ko': if (mutate(s => TT.startKnockout(s))) { tab = 'tabel'; render(); } break;
+    case 'reset-ko': if (confirm('Eindrondes wissen? De poule-uitslagen blijven bewaard.')) { mutate(s => TT.resetKnockout(s)); tab = 'poules'; render(); } break;
+    case 'print': window.print(); break;
+    case 'slips-playing': printSlips(state.matches.filter(m => m.table && !TT.isDone(m)).sort((a, b) => a.table - b.table)); break;
+    case 'slips-poules': printSlips(state.matches.filter(m => m.kind === 'poule' && !TT.isDone(m))); break;
+    case 'export': {
+      const blob = new Blob([JSON.stringify(state, null, 1)], { type: 'application/json' });
+      const u = URL.createObjectURL(blob), l = document.createElement('a');
+      const d = new Date(), pad = n => String(n).padStart(2, '0');
+      l.href = u; l.download = `tornooi-backup-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+      document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000); break;
+    }
+    case 'reset-all': if (confirm('Echt alles wissen?')) { mutate(s => Object.assign(s, TT.newState())); tab = 'spelers'; render(); } break;
+  }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.dataset.set) {
+    const k = el.dataset.set;
+    mutate(s => {
+      if (k === 'name') s.name = el.value;
+      else if (k === 'consolation') s.settings.consolation = el.checked;
+      else if (k === 'handicap') s.settings.handicap = el.value;
+      else s.settings[k] = Math.max(1, parseInt(el.value, 10) || 1);
+    });
+  } else if (el.dataset.pedit) {
+    mutate(s => { const p = s.players.find(x => x.id === el.dataset.id); p[el.dataset.pedit] = el.dataset.pedit === 'name' ? el.value.trim() : el.value; });
+  } else if (el.dataset.assign && el.value) {
+    mutate(s => TT.assign(s, el.dataset.assign, +el.value));
+  } else if (el.dataset.action === 'import' && el.files[0]) {
+    el.files[0].text().then(t => {
+      try { const d = JSON.parse(t); if (!d.settings || !Array.isArray(d.players)) throw 0; mutate(s => { Object.keys(s).forEach(k => delete s[k]); Object.assign(s, d); }); toast('Back-up geladen'); }
+      catch (_) { toast('Dit is geen geldig back-upbestand.', true); }
+    });
+  }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+window.addEventListener('storage', e => { if (e.key === KEY) { load(); if (!$modal.innerHTML) render(); } });
+window.addEventListener('hashchange', render);
+window.addEventListener('beforeunload', persist);
+setInterval(() => { if (isDisplay()) { load(); render(); } }, 5000);
+
+load();
+if (state.stage !== 'setup') tab = state.stage === 'draw' ? 'poules' : 'wedstrijden';
+render();
+</script>
+</body>
+</html>
