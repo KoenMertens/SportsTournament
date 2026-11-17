@@ -981,10 +981,11 @@ function openScore(id) {
       <div class="err" id="scoreErr"></div>
       <div class="row"><button class="primary">Opslaan</button><button type="button" data-action="close-modal">Annuleren</button>
         ${TT.isDone(m) ? `<button type="button" class="danger" data-action="clear-score" data-id="${m.id}">Uitslag wissen</button>` : ''}</div>
-      <details style="margin-top:12px"><summary>Enkel setscore of forfait</summary>
-        <div class="row" style="margin-top:8px">${quick.map(([a, b]) => `<button type="button" class="sm" data-action="quick-score" data-id="${m.id}" data-a="${a}" data-b="${b}">${a}-${b}</button>`).join('')}</div>
-        <div class="row" style="margin-top:8px"><button type="button" class="sm" data-action="wo" data-id="${m.id}" data-wo="1">Forfait ${esc(pname(m.p1))}</button><button type="button" class="sm" data-action="wo" data-id="${m.id}" data-wo="2">Forfait ${esc(pname(m.p2))}</button></div>
-      </details>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+        <div class="small"><b>Of meteen alleen de sets</b> (${esc(pname(m.p1))} – ${esc(pname(m.p2))}):</div>
+        <div class="row" style="margin-top:8px">${quick.map(([a, b]) => `<button type="button" data-action="quick-score" data-id="${m.id}" data-a="${a}" data-b="${b}">${a}-${b}</button>`).join('')}</div>
+        <div class="row" style="margin-top:8px"><button type="button" data-action="wo" data-id="${m.id}" data-wo="1">Forfait ${esc(pname(m.p1))}</button><button type="button" data-action="wo" data-id="${m.id}" data-wo="2">Forfait ${esc(pname(m.p2))}</button></div>
+      </div>
     </form></div></div>`;
   setTimeout(() => $modal.querySelector('input[name=s0]')?.focus(), 0);
 }
