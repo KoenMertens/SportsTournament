@@ -10,11 +10,12 @@ let seed = 42;
 const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
 const pick = a => a[Math.floor(rnd() * a.length)];
 
-function randomSets(bo) {
-  const need = Math.ceil(bo / 2), sets = []; let a = 0, b = 0;
+function randomSets(bo, h = [0, 0]) {
+  const need = Math.ceil(bo / 2), sets = [], T = 11 + Math.max(h[0], h[1]); let a = 0, b = 0;
   while (a < need && b < need) {
-    const lose = Math.floor(rnd() * 13), win = lose <= 9 ? 11 : lose + 2;
-    if (rnd() < 0.5) { sets.push([win, lose]); a++; } else { sets.push([lose, win]); b++; }
+    const p1wins = rnd() < 0.5, hW = h[p1wins ? 0 : 1], hL = h[p1wins ? 1 : 0];
+    const lose = Math.floor(rnd() * 12), win = Math.max(T, lose + hL + 2) - hW;
+    if (p1wins) { sets.push([win, lose]); a++; } else { sets.push([lose, win]); b++; }
   }
   return sets;
 }
@@ -29,7 +30,7 @@ function playAll(s, check) {
     playing.forEach(m => [m.p1, m.p2].forEach(p => { assert(!seen.has(p), 'speler aan twee tafels'); seen.add(p); }));
     assert(new Set(playing.map(m => m.table)).size === playing.length, 'tafel dubbel gebruikt');
     const m = pick(playing);
-    TT.setResult(s, m.id, { sets: randomSets(m.bo) });
+    TT.setResult(s, m.id, { sets: randomSets(m.bo, TT.targets(s, m).h) });
     if (check) check(m);
     assert(guard++ < 5000);
   }
@@ -107,6 +108,7 @@ const RANKS = ['B2', 'B6', 'C0', 'C2', 'C4', 'C6', 'D0', 'D2', 'D4', 'D6', 'E0',
 for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons of [true, false]) {
   const s = TT.newState();
   s.settings.consolation = cons;
+  s.settings.handicap = ['half', 'up', 'none'][rep % 3];
   s.settings.tables = 1 + Math.floor(rnd() * 8);
   for (let i = 0; i < n; i++) s.players.push({ id: TT.nextId(s, 'p'), name: 'Speler ' + (i + 1), rank: pick(RANKS) });
   s.poules = TT.drawPoules(s.players, s.settings.pouleSize, rep % 2 === 1, rnd);
@@ -203,6 +205,8 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
   const s = TT.newState();
   [['a', 'B0'], ['b', 'B2'], ['c', 'C0'], ['d', 'NG'], ['e', 'A'], ['f', '']].forEach(([id, rank]) => s.players.push({ id, name: id, rank }));
   const tg = (p1, p2) => TT.targets(s, { p1, p2 });
+  assert.strictEqual(s.settings.handicap, 'half');             // standaard aan
+  s.settings.handicap = 'none';
   assert.deepStrictEqual(tg('a', 'd').t, [11, 11]);            // voorgift uit
   s.settings.handicap = 'half';
   assert.deepStrictEqual(tg('a', 'b').t, [11, 11]);            // 1 klassement: niets
