@@ -19,6 +19,15 @@ function randomSets(bo, h = [0, 0]) {
   }
   return sets;
 }
+// speelt één wedstrijd (poule of eindronde door elkaar)
+function playOne(s) {
+  TT.autoAssign(s);
+  const playing = s.matches.filter(m => m.table && !TT.isDone(m));
+  const seen = new Set();
+  playing.forEach(m => [m.p1, m.p2].forEach(p => { assert(!seen.has(p), 'speler aan twee tafels'); assert(!TT.isToken(p)); seen.add(p); }));
+  const m = pick(playing);
+  TT.setResult(s, m.id, { sets: randomSets(m.bo, TT.targets(s, m).h) });
+}
 function playAll(s, check) {
   let guard = 0;
   while (true) {
@@ -123,16 +132,18 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
   }
   s.poules.forEach(p => assert(p.players.length >= 3 || n < 3));
   TT.startPoules(s);
+  const early = rep % 4 >= 2;   // eindrondes al aanmaken vóór de poules gespeeld zijn
+  if (early) TT.startKnockout(s);
   s.poules.forEach(p => {
     const ms = s.matches.filter(m => m.poule === p.id), c = p.players.length;
     assert.strictEqual(ms.length, c * (c - 1) / 2);
     assert.strictEqual(new Set(ms.map(m => [m.p1, m.p2].sort().join())).size, ms.length);
   });
-  playAll(s);
+  if (early) { let g = 0; while (!TT.allPoulesDone(s)) { playOne(s); assert(g++ < 5000); } } else playAll(s);
   assert(TT.allPoulesDone(s));
   s.poules.forEach(p => { const st = TT.pouleStandings(s, p.id); assert(st.complete); assert.strictEqual(new Set(st.rows.map(r => r.id)).size, p.players.length); });
-  assert.throws(() => TT.setResult(s, s.matches[0].id, { score: [2, 0] }) || TT.startKnockout(s) || TT.setResult(s, s.matches[0].id, { score: [2, 0] }));
-  if (s.stage !== 'knockout') TT.startKnockout(s);
+  if (!early) TT.startKnockout(s);
+  assert(!s.matches.some(m => m.kind !== 'poule' && (TT.isToken(m.p1) || TT.isToken(m.p2) || TT.isToken(m.winner))), 'plaatshouder niet ingevuld');
   const main = s.matches.filter(m => m.kind === 'main');
   const Q = Math.min(2, 99) * k;
   // eerste ronde: geen twee spelers uit dezelfde poule tegen elkaar (als er minstens 2 poules zijn)
@@ -244,5 +255,40 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
   TT.autoAssign(s);
   const m = s.matches.find(x => x.table);
   assert(m.ump && m.ump !== m.p1 && m.ump !== m.p2, 'vrije speler van de poule telt');
+}
+// --- eindrondes vroeg aanmaken geeft dezelfde tabel als wachten tot alle poules klaar zijn
+for (const n of [8, 13, 17, 22, 29, 30]) {
+  const mk = () => { const s = TT.newState(); s.settings.handicap = 'none'; for (let i = 0; i < n; i++) s.players.push({ id: 'p' + (i + 1), name: 'S' + (i + 1), rank: RANKS[i % RANKS.length] }); s.poules = TT.drawPoules(s.players, 4); TT.startPoules(s); return s; };
+  const a = mk(), b = mk();
+  TT.startKnockout(a);
+  const first = s => s.matches.filter(m => m.kind !== 'poule' && m.gsize === m.B).map(m => m.kind + m.idx + ':' + m.p1 + '-' + m.p2).join(' ');
+  assert(/\?A:1/.test(first(a)), 'plaatshouders verwacht');
+  assert(!a.matches.some(m => m.kind !== 'poule' && TT.isPlayable(m)), 'nog niets speelbaar');
+  const order = a.matches.filter(m => m.kind === 'poule').map(m => m.id);
+  const res = {};
+  order.forEach(id => { res[id] = randomSets(3); });
+  // poule A eerst afwerken: dan kent de tabel al de spelers van poule A
+  order.forEach(id => { TT.setResult(a, id, { sets: res[id] }); TT.setResult(b, id, { sets: res[id] }); });
+  TT.startKnockout(b);
+  assert.strictEqual(first(a), first(b), `vroege en late tabel verschillen (n=${n})`);
+  const byes = s => s.matches.filter(m => m.kind !== 'poule' && m.bye).map(m => m.id + ':' + m.winner).join(' ');
+  assert.strictEqual(byes(a), byes(b));
+  // een poule-uitslag wissen maakt de plaatsen van die poule weer onbekend, opnieuw ingeven herstelt de tabel
+  const pm = a.matches.find(m => m.kind === 'poule' && m.poule === 'B');
+  TT.clearResult(a, pm.id);
+  assert(/\?B:1/.test(first(a)) && !/\?A:1/.test(first(a)));
+  TT.setResult(a, pm.id, { sets: res[pm.id] });
+  assert.strictEqual(first(a), first(b));
+  // na een gespeelde eindrondewedstrijd mag een poule-uitslag die de deelnemers verandert niet meer
+  const km = a.matches.find(m => m.kind === 'main' && TT.isPlayable(m) && !m.bye);
+  TT.setResult(a, km.id, { score: [Math.ceil(km.bo / 2), 0] });
+  const pouleOfP1 = a.poules.find(p => p.players.includes(km.p1)).id;
+  const snap = JSON.stringify(a);
+  const victim = a.matches.find(m => m.kind === 'poule' && m.poule === pouleOfP1);
+  assert.throws(() => TT.clearResult(a, victim.id), /al gespeelde eindrondewedstrijd/);
+  const a2 = JSON.parse(snap);
+  // dezelfde uitslag opnieuw ingeven verandert niets en mag wel
+  TT.setResult(a2, victim.id, { sets: res[victim.id] });
+  assert.strictEqual(first(a2), first(b));
 }
 console.log('Alle logicatests geslaagd.');

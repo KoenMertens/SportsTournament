@@ -278,7 +278,9 @@ const TT = (() => {
     return { ok: true, score: [a, b] };
   }
 
-  const isPlayable = m => m.p1 && m.p2 && m.p1 !== 'BYE' && m.p2 !== 'BYE';
+  // Plaatshouder in de eindrondes zolang een poule niet klaar is: '?A:1' = 1ste van poule A.
+  const isToken = p => typeof p === 'string' && p[0] === '?';
+  const isPlayable = m => !!(m.p1 && m.p2 && m.p1 !== 'BYE' && m.p2 !== 'BYE' && !isToken(m.p1) && !isToken(m.p2));
   const isDone = m => !!m.winner;
 
   /* ---------- Poulestand (ITTF-regels) ---------- */
@@ -430,9 +432,9 @@ const TT = (() => {
       const bo = kind === 'main' && g.start + g.size - 1 <= 4 ? s.settings.bestOfFinals : s.settings.bestOf;
       for (let i = 0; i < g.size / 2; i++)
         s.matches.push(makeMatch(s, { kind, gstart: g.start, gsize: g.size, depth: g.depth, B, n: entries.length, offset, idx: i, bo,
+          t1: g.size === B ? slots[2 * i] : null, t2: g.size === B ? slots[2 * i + 1] : null,
           p1: g.size === B ? slots[2 * i] : null, p2: g.size === B ? slots[2 * i + 1] : null }));
     });
-    s.matches.filter(m => m.kind === kind && m.gsize === B).forEach(m => autoBye(s, m));
   }
   function autoBye(s, m) {
     if (m.winner || !m.p1 || !m.p2 || (m.p1 !== 'BYE' && m.p2 !== 'BYE')) return;
@@ -462,28 +464,61 @@ const TT = (() => {
     return nextOf(s, m).some(n => (n.table && !isDone(n)) || (isDone(n) && !n.bye) || (n.bye && downstreamBlocked(s, n)));
   }
 
+  // Deelnemers aan de eindrondes als plaatshouders per poule en plaats. Ze worden ingevuld zodra
+  // de poule klaar is (zie rederive), zodat de eindrondes al kunnen starten terwijl andere poules
+  // nog bezig zijn.
   function koEntries(s) {
     const q = s.settings.qualifiers, main = [], cons = [];
-    s.poules.forEach(p => {
-      pouleStandings(s, p.id).rows.forEach(r => {
-        const pl = s.players.find(x => x.id === r.id);
-        const e = { pid: r.id, poule: p.id, rank: r.pos };
-        if (pl.withdrawn) return;
-        if (r.pos <= q) main.push(e); else cons.push(Object.assign(e, { rank: r.pos - q }));
-      });
-    });
+    s.poules.forEach(p => p.players.forEach((_, i) => {
+      const pos = i + 1, e = { pid: `?${p.id}:${pos}`, poule: p.id, rank: pos };
+      if (pos <= q) main.push(e); else cons.push(Object.assign(e, { rank: pos - q }));
+    }));
     const srt = (a, b) => a.rank - b.rank || s.poules.findIndex(p => p.id === a.poule) - s.poules.findIndex(p => p.id === b.poule);
     return { main: main.sort(srt), cons: cons.sort(srt) };
   }
+  const pouleComplete = (s, pouleId) => { const ms = s.matches.filter(m => m.kind === 'poule' && m.poule === pouleId); return ms.length > 0 && ms.every(isDone); };
+  // '?A:1' -> speler-id zodra poule A klaar is ('BYE' als die speler afgemeld is), anders de plaatshouder zelf.
+  function resolveToken(s, t) {
+    if (!isToken(t)) return t;
+    const k = t.lastIndexOf(':'), pouleId = t.slice(1, k), pos = +t.slice(k + 1);
+    if (!pouleComplete(s, pouleId)) return t;
+    const row = pouleStandings(s, pouleId).rows[pos - 1];
+    if (!row) return 'BYE';
+    return s.players.find(x => x.id === row.id)?.withdrawn ? 'BYE' : row.id;
+  }
+  // Leidt de eindrondetabellen opnieuw af uit de poulestanden en de al gespeelde eindrondewedstrijden.
+  // Gooit een fout als een poulewijziging een al gespeelde eindrondewedstrijd zou veranderen.
+  function rederive(s) {
+    const ko = s.matches.filter(m => m.kind !== 'poule');
+    if (!ko.length || ko.some(m => m.gsize === m.B && m.t1 === undefined)) return false;   // oude back-up zonder plaatshouders
+    const orig = new Map(ko.map(m => [m.id, [m.p1, m.p2]]));
+    ko.forEach(m => {
+      if (m.bye) { m.bye = false; m.winner = null; }
+      if (m.gsize === m.B) { m.p1 = resolveToken(s, m.t1); m.p2 = resolveToken(s, m.t2); } else { m.p1 = null; m.p2 = null; }
+    });
+    ko.slice().sort((a, b) => a.depth - b.depth).forEach(m => {
+      const [o1, o2] = orig.get(m.id), changed = m.p1 !== o1 || m.p2 !== o2;
+      if (m.bye) return;                       // al automatisch doorgeschoven
+      if (m.winner) {
+        if (changed) throw new Error('Deze wijziging verandert wie er in een al gespeelde eindrondewedstrijd staat. Wis eerst die eindronde-uitslag.');
+        propagate(s, m);
+      } else {
+        if (changed && m.table) { m.table = null; m.started = null; m.ump = null; }
+        autoBye(s, m);
+      }
+    });
+    return true;
+  }
 
   function startKnockout(s) {
-    if (!allPoulesDone(s)) throw new Error('Nog niet alle poulewedstrijden zijn gespeeld.');
+    if (!s.matches.some(m => m.kind === 'poule')) throw new Error('Start eerst de poules.');
     s.matches = s.matches.filter(m => m.kind === 'poule');
     const { main, cons } = koEntries(s);
     createBracket(s, 'main', main, 0);
     if (s.settings.consolation && cons.length >= 2) createBracket(s, 'cons', cons, main.length);
     s.loneRest = s.settings.consolation && cons.length === 1 ? { pid: cons[0].pid, pos: main.length + 1 } : null;
     s.stage = 'knockout';
+    rederive(s);
   }
   function resetKnockout(s) {
     s.matches = s.matches.filter(m => m.kind === 'poule');
@@ -493,7 +528,10 @@ const TT = (() => {
 
   // Kan de uitslag van m aangepast worden zonder latere rondes te breken?
   function canEdit(s, m) {
-    if (m.kind === 'poule') return s.stage === 'poules' ? { ok: true } : { ok: false, error: 'De eindrondes zijn al aangemaakt. Wis eerst de eindrondes om poule-uitslagen te wijzigen.' };
+    if (m.kind === 'poule') {
+      const legacy = s.matches.some(x => x.kind !== 'poule' && x.gsize === x.B && x.t1 === undefined);
+      return s.stage === 'poules' || !legacy ? { ok: true } : { ok: false, error: 'De eindrondes zijn al aangemaakt. Wis eerst de eindrondes om poule-uitslagen te wijzigen.' };
+    }
     if (isDone(m) && downstreamBlocked(s, m)) return { ok: false, error: 'De volgende ronde is al bezig of gespeeld. Wis eerst die uitslag.' };
     return { ok: true };
   }
@@ -516,7 +554,7 @@ const TT = (() => {
     m.winner = r.score[0] > r.score[1] ? m.p1 : m.p2;
     m.table = null;
     m.finished = Date.now();
-    propagate(s, m);
+    if (m.kind === 'poule') { if (s.stage === 'knockout') rederive(s); } else propagate(s, m);
   }
   function clearResult(s, id) {
     const m = s.matches.find(x => x.id === id);
@@ -524,6 +562,7 @@ const TT = (() => {
     if (m.bye) return;
     if (m.kind !== 'poule') clearDown(s, m);
     Object.assign(m, { sets: [], score: null, wo: null, winner: null, finished: null });
+    if (m.kind === 'poule' && s.stage === 'knockout') rederive(s);
   }
 
   /* ---------- Spelers tijdens het tornooi ---------- */
@@ -602,7 +641,7 @@ const TT = (() => {
 
   // Naam van de groep waarin m speelt, bv. "Kwartfinale", "Plaats 9-16", "Om plaats 3"
   function groupLabel(m) {
-    const off = m.offset || 0, a = m.gstart + off, b = Math.min(m.gstart + m.gsize - 1, m.n || 1e9) + off;
+    const off = m.offset || 0, a = m.gstart + off, b = Math.max(m.gstart, Math.min(m.gstart + m.gsize - 1, m.n || 1e9)) + off;
     if (m.gstart === 1 && m.kind === 'main') return m.gsize === 2 ? 'Finale' : m.gsize === 4 ? 'Halve finale' : m.gsize === 8 ? 'Kwartfinale' : `1/${m.gsize / 2} finale`;
     return m.gsize === 2 || a === b ? `Om plaats ${a}` : `Plaats ${a}-${b}`;
   }
@@ -610,7 +649,7 @@ const TT = (() => {
   function placements(s, kind) {
     const out = [];
     s.matches.filter(m => m.kind === kind && m.gsize === 2 && isDone(m)).forEach(m => {
-      [[m.gstart, m.winner], [m.gstart + 1, loserOf(m)]].forEach(([pos, pid]) => { if (pid && pid !== 'BYE') out.push({ pos: pos + (m.offset || 0), pid }); });
+      [[m.gstart, m.winner], [m.gstart + 1, loserOf(m)]].forEach(([pos, pid]) => { if (pid && pid !== 'BYE' && !isToken(pid)) out.push({ pos: pos + (m.offset || 0), pid }); });
     });
     return out.sort((a, b) => a.pos - b.pos);
   }
@@ -625,9 +664,9 @@ const TT = (() => {
       });
       slots.sort((a, b) => a.raw - b.raw);
       let byes = 0;
-      slots.forEach(x => { if (x.pid === 'BYE') byes++; else res.push({ pos: x.raw - byes + off, pid: x.pid, kind }); });
+      slots.forEach(x => { if (x.pid === 'BYE') byes++; else if (!isToken(x.pid)) res.push({ pos: x.raw - byes + off, pid: x.pid, kind }); });
     });
-    if (s.loneRest) res.push({ pos: s.loneRest.pos, pid: s.loneRest.pid, kind: 'cons' });
+    if (s.loneRest) { const pid = resolveToken(s, s.loneRest.pid); if (pid !== 'BYE' && !isToken(pid)) res.push({ pos: s.loneRest.pos, pid, kind: 'cons' }); }
     return res;
   }
   function podium(s, kind) {
@@ -640,7 +679,7 @@ const TT = (() => {
   return { RANKS, rankValue, newState, pouleSizes, drawPoules, roundRobin, startPoules, parseSet, validSet, checkSets,
     checkScore, pouleStandings, allPoulesDone, seedOrder, meetRound, buildBracket, clubBracket, CLUB_TABLES, koEntries, startKnockout, resetKnockout,
     setResult, clearResult, canEdit, withdraw, addLatePlayer, readyMatches, freeTables, assign, autoAssign, busyPlayers,
-    targets, pickUmpire, maxDepth, groupLabel, placements, finalRanking, podium, isDone, isPlayable, nextId, pouleName };
+    targets, pickUmpire, isToken, rederive, pouleComplete, maxDepth, groupLabel, placements, finalRanking, podium, isDone, isPlayable, nextId, pouleName };
 })();
 window.TT = TT;
 
@@ -672,7 +711,12 @@ function mutate(fn) {
    ========================================================================= */
 const $app = document.getElementById('app'), $modal = document.getElementById('modal');
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const pname = id => id === 'BYE' ? 'vrij' : (state.players.find(p => p.id === id)?.name ?? '');
+const ORD = ['', '1ste', '2de', '3de', '4de', '5de', '6de'];
+const pname = id => {
+  if (id === 'BYE') return 'vrij';
+  if (TT.isToken(id)) { const k = id.lastIndexOf(':'); return `${ORD[+id.slice(k + 1)] || id.slice(k + 1) + 'de'} poule ${id.slice(1, k)}`; }
+  return state.players.find(p => p.id === id)?.name ?? '';
+};
 const prank = id => state.players.find(p => p.id === id)?.rank || '';
 let tab = 'spelers', drawSel = null;
 const isDisplay = () => location.hash === '#scherm';
@@ -867,7 +911,7 @@ function viewMatches() {
 function bmHtml(m, clickable) {
   const done = TT.isDone(m);
   const side = (p, i) => {
-    const nm = p ? (p === 'BYE' ? '<span class="tbd">vrij</span>' : esc(pname(p))) : '<span class="tbd">…</span>';
+    const nm = p ? (p === 'BYE' ? '<span class="tbd">vrij</span>' : TT.isToken(p) ? `<span class="tbd">${esc(pname(p))}</span>` : esc(pname(p))) : '<span class="tbd">…</span>';
     const sc = done && !m.bye ? m.score[i] : '';
     return `<div class="bp ${done && m.winner === p ? 'w' : ''}"><span>${nm}</span><span>${sc}</span></div>`;
   };
@@ -917,7 +961,8 @@ function viewKnockout() {
   const s = state;
   if (s.stage === 'poules') {
     const left = s.matches.filter(m => m.kind === 'poule' && !TT.isDone(m)).length;
-    return `<div class="card"><h2>Eindrondes</h2>${left ? `<p>Nog ${left} poulewedstrijd${left > 1 ? 'en' : ''} te spelen. Daarna kun je de eindrondes aanmaken.</p>` :
+    return `<div class="card"><h2>Eindrondes</h2>${left ? `<p>Nog ${left} poulewedstrijd${left > 1 ? 'en' : ''} te spelen. Je kunt de eindrondes nu al aanmaken: de tabel toont dan "1ste poule A" enzovoort en vult zich vanzelf in zodra een poule klaar is. Wedstrijden waarvan beide spelers bekend zijn, kunnen meteen starten.</p><button class="primary" data-action="start-ko">Eindrondes nu al aanmaken →</button>
+        <p class="hint">Let op: daarna kun je geen laatkomer meer toevoegen en niemand meer afmelden.</p>` :
       `<p>Alle poules zijn klaar.</p><button class="primary" data-action="start-ko">Eindrondes aanmaken →</button>`}
       <p class="muted small">Top ${s.settings.qualifiers} van elke poule gaat naar de hoofdtabel${s.settings.consolation ? ', de anderen naar de troosttabel' : ''}. Iedereen speelt door tot zijn eindplaats vaststaat. De opstelling volgt de vaste eindrondetabellen van de club (2 tot 8 poules).</p></div>`;
   }
@@ -959,6 +1004,7 @@ function renderDisplay() {
       <div class="card"><h2>Volgende</h2>${next.map(m => `<div class="match"><div class="names">${esc(pname(m.p1))} – ${esc(pname(m.p2))}<div class="muted small">${mLabel(m)}</div></div></div>`).join('') || '<p class="muted">–</p>'}</div></div>`;
   }
   if (s.stage === 'knockout') {
+    if (!TT.allPoulesDone(s)) h += `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(420px,1fr))">${s.poules.filter(p => !TT.pouleComplete(s, p.id)).map(p => `<div class="card"><h3>Poule ${p.id}</h3>${standingTable(p.id, true)}</div>`).join('')}</div>`;
     h += `<div class="card"><h2>Hoofdtabel</h2>${bracketHtml('main', false, true)}</div>`;
     if (s.matches.some(m => m.kind === 'cons')) h += `<div class="card"><h2>Troosttabel</h2>${bracketHtml('cons', false, true)}</div>`;
     h += rankingHtml();

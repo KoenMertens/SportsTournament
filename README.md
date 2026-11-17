@@ -8,7 +8,7 @@ Eén bestand, `index.html`, dat volledig in de browser draait. Geen server, geen
 2. **Spelers**: vul namen en klassementen in (één per één of een hele lijst plakken: `Naam; C4`).
 3. **Loting maken**: de spelers worden op klassement over de poules verdeeld volgens het slangsysteem (A1, B1, … en dan terug), zodat de sterkste spelers niet samen zitten. Bij gelijk klassement telt de volgorde van je lijst. Je kunt ook laten loten binnen de potten, of twee spelers wisselen door ze aan te klikken.
 4. **Wedstrijden & tafels**: klik op *Vrije tafels vullen* en geef uitslagen in. Typ `11-7`, of kort `7` (11-7 gewonnen) of `-9` (9-11 verloren).
-5. **Eindrondes**: als alle poules klaar zijn, maak je de hoofdtabel (top 2 per poule) en de troosttabel aan. Iedereen speelt door tot zijn eindplaats vaststaat.
+5. **Eindrondes**: maak de hoofdtabel (top 2 per poule) en de troosttabel aan. Dat kan ook al terwijl er nog poules bezig zijn: de tabel toont dan "1ste poule A" en vult zich vanzelf in zodra een poule klaar is. Iedereen speelt door tot zijn eindplaats vaststaat. Na het aanmaken kun je geen laatkomer meer toevoegen.
 6. **🖥 Scherm**: opent een tweede venster voor tv of beamer dat automatisch meevolgt.
 
 ## Formaat
