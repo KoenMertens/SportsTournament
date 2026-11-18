@@ -21,7 +21,7 @@ Eén bestand, `index.html`, dat volledig in de browser draait. Geen server, geen
 - Volgorde in een poule van 4: 1-4, 2-3, 1-3, 2-4, 1-2, 3-4 (hoogst geplaatste eerst).
 - In de eindrondes zijn wedstrijden die al gespeeld kunnen worden groen gekleurd.
 - Clubleden kiezen: standaard de vaste ledenlijst van TTC Sterke Stut (werkt offline). Via de keuzelijst **Club** kun je de leden en klassementen van een andere club ophalen bij VTTL (TabT-API, zonder login; heeft internet nodig).
-- De clubfoto zit in de repo (`clubfoto.jpg`); het logo komt van sterkestut.be en verdwijnt gewoon zonder internet.
+- De clubfoto zit in de repo (`clubfoto.jpg`); het logo ook (`logo.png`).
 - Bij poulewedstrijden stelt de app een poulegenoot voor die telt.
 - Wedstrijdbriefjes kun je afdrukken, per poule of voor de lopende wedstrijden.
 

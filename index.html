@@ -60,10 +60,14 @@ tr.q td{background:var(--hi)}
 .notice.ok{background:#eaf7ee;border-color:#b6e0c2}
 .champ{font-size:20px;font-weight:700}
 /* club (TTC Sterke Stut): afbeeldingen komen van sterkestut.be en verdwijnen als ze niet laden (offline) */
-.logo{height:38px;background:#fff;border-radius:6px;padding:3px 6px;display:block}
-.hero{position:relative;border-radius:10px;overflow:hidden;margin-bottom:14px;background:#18202f;text-align:center}
-.hero .photo{max-width:100%;width:auto;height:auto;max-height:300px;display:block;margin:0 auto}
-.hero .logo{position:absolute;top:12px;left:12px;height:60px;padding:5px 8px;box-shadow:0 1px 6px rgba(0,0,0,.35)}
+.logo{height:40px;border-radius:5px;display:block;border:1px solid rgba(255,255,255,.35)}
+/* achtergrond: clubblauw met paletjes en balletjes (ingebouwde tekening, werkt offline) */
+.hero{position:relative;border-radius:10px;overflow:hidden;margin-bottom:14px;text-align:center;
+  background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 260 340%22%3E%3Cg transform=%22rotate(-24 130 170)%22%3E%3Crect x=%22116%22 y=%22196%22 width=%2228%22 height=%22112%22 rx=%229%22 fill=%22%23c98a4b%22/%3E%3Crect x=%22116%22 y=%22196%22 width=%2228%22 height=%22112%22 rx=%229%22 fill=%22none%22 stroke=%22%238a5a2b%22 stroke-width=%223%22/%3E%3Cpath d=%22M104 176 L156 176 L146 214 L114 214 Z%22 fill=%22%23b5763a%22/%3E%3Cellipse cx=%22130%22 cy=%22104%22 rx=%2284%22 ry=%2290%22 fill=%22%23d62828%22/%3E%3Cellipse cx=%22130%22 cy=%22104%22 rx=%2284%22 ry=%2290%22 fill=%22none%22 stroke=%22%239d1c1c%22 stroke-width=%225%22/%3E%3Cpath d=%22M70 60 Q130 10 190 60%22 fill=%22none%22 stroke=%22%23fff%22 stroke-opacity=%22.28%22 stroke-width=%227%22 stroke-linecap=%22round%22/%3E%3C/g%3E%3Ccircle cx=%2240%22 cy=%2252%22 r=%2222%22 fill=%22%23fff%22/%3E%3Ccircle cx=%2240%22 cy=%2252%22 r=%2222%22 fill=%22none%22 stroke=%22%23cfd6e6%22 stroke-width=%223%22/%3E%3Ccircle cx=%22222%22 cy=%22300%22 r=%2215%22 fill=%22%23ff9f1c%22/%3E%3C/svg%3E") left 26px bottom 8px/auto 78% no-repeat,url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 260 340%22%3E%3Cg transform=%22rotate(24 130 170)%22%3E%3Crect x=%22116%22 y=%22196%22 width=%2228%22 height=%22112%22 rx=%229%22 fill=%22%23c98a4b%22/%3E%3Crect x=%22116%22 y=%22196%22 width=%2228%22 height=%22112%22 rx=%229%22 fill=%22none%22 stroke=%22%238a5a2b%22 stroke-width=%223%22/%3E%3Cpath d=%22M104 176 L156 176 L146 214 L114 214 Z%22 fill=%22%23b5763a%22/%3E%3Cellipse cx=%22130%22 cy=%22104%22 rx=%2284%22 ry=%2290%22 fill=%22%23d62828%22/%3E%3Cellipse cx=%22130%22 cy=%22104%22 rx=%2284%22 ry=%2290%22 fill=%22none%22 stroke=%22%239d1c1c%22 stroke-width=%225%22/%3E%3Cpath d=%22M70 60 Q130 10 190 60%22 fill=%22none%22 stroke=%22%23fff%22 stroke-opacity=%22.28%22 stroke-width=%227%22 stroke-linecap=%22round%22/%3E%3C/g%3E%3Ccircle cx=%22220%22 cy=%2252%22 r=%2222%22 fill=%22%23fff%22/%3E%3Ccircle cx=%22220%22 cy=%2252%22 r=%2222%22 fill=%22none%22 stroke=%22%23cfd6e6%22 stroke-width=%223%22/%3E%3Ccircle cx=%2238%22 cy=%22300%22 r=%2215%22 fill=%22%23ff9f1c%22/%3E%3C/svg%3E") right 26px center/auto 92% no-repeat,linear-gradient(135deg,#182870,#2a4bb0 55%,#182870)}
+.hero .photo{max-width:100%;width:auto;height:auto;max-height:300px;display:block;margin:14px auto 0;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.4);border:3px solid #fff}
+@media (max-width:1000px){.hero .photo{margin-top:0;border:0;border-radius:0}}
+.hero .logo{position:absolute;top:12px;left:12px;height:64px;box-shadow:0 1px 6px rgba(0,0,0,.35)}
+@media (max-width:1000px){.hero .logo{display:none}}   /* smal scherm: logo zou over de foto vallen */
 .hero div{padding:8px 16px 10px;text-align:left;color:#fff;font-size:20px;font-weight:650}
 .hero a{color:#fff;font-size:13px;font-weight:400;margin-left:8px}
 body.display .logo{height:48px}
@@ -133,7 +137,7 @@ body.display .pill{background:#26324a;color:#c3cde0}
 </head>
 <body>
 <header>
-  <a href="https://www.sterkestut.be/" target="_blank" rel="noopener" title="TTC Sterke Stut"><img class="logo" src="https://www.sterkestut.be/wp-content/uploads/2021/01/strek-logo-1.png" alt="TTC Sterke Stut" onerror="this.parentNode.remove()"></a>
+  <a href="https://www.sterkestut.be/" target="_blank" rel="noopener" title="TTC Sterke Stut"><img class="logo" src="logo.png" alt="TTC Sterke Stut" onerror="this.parentNode.remove()"></a>
   <h1 id="title">Clubkampioenschap</h1>
   <nav id="nav"></nav>
   <div class="hdr-right">
@@ -982,7 +986,7 @@ function clubFilter() {
 }
 var logoOk = true, photoOk = true, photoLocal = true;   // clubfoto.jpg naast de pagina, anders de foto van sterkestut.be
 //   // false zodra een afbeelding niet laadt (offline)
-const CLUB_LOGO = 'https://www.sterkestut.be/wp-content/uploads/2021/01/strek-logo-1.png';
+const CLUB_LOGO = 'logo.png';   // logo van TTC Sterke Stut (wit op transparant) op de clubkleur gezet
 const CLUB_PHOTO = 'https://www.sterkestut.be/wp-content/uploads/2024/09/2024-09-11-oosterzele-%C2%A9DDL-Tafeltennisclub-TTC-Sterke-Stut-Oosterzele-22-1024x591.jpg';
 function rankSelect(name, val) {
   return `<select name="${name}"><option value="">–</option>${TT.RANKS.map(r => `<option ${r === val ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
