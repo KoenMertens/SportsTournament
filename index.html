@@ -66,6 +66,10 @@ tr.q td{background:var(--hi)}
 .hero div{position:absolute;left:0;right:0;bottom:0;padding:26px 16px 10px;color:#fff;font-size:20px;font-weight:650;background:linear-gradient(transparent,rgba(10,15,25,.8))}
 .hero a{color:#fff;font-size:13px;font-weight:400;margin-left:8px}
 body.display .logo{height:48px}
+.club-list{columns:4 200px;max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px}
+.club-list label{display:flex;break-inside:avoid;padding:2px 0;cursor:pointer}
+.club-list label[hidden]{display:none}
+.club-list label.in{color:var(--muted)}
 /* bracket */
 .bracket{display:flex;gap:18px;overflow-x:auto;padding-bottom:6px}
 .bround{display:flex;flex-direction:column;justify-content:space-around;min-width:200px;gap:8px}
@@ -783,6 +787,26 @@ function render() {
 }
 
 /* ---------- Spelers ---------- */
+// Ledenlijst van de club (bron: sterkestut.be/leden), één lid per lijn als "Naam;Klassement".
+const CLUB_MEMBERS = `
+`.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [name, rank = ''] = l.split(';').map(x => x.trim()); return { name, rank: TT.RANKS.includes(rank.toUpperCase()) ? rank.toUpperCase() : '' }; })
+  .sort((a, b) => TT.rankValue(a.rank) - TT.rankValue(b.rank) || a.name.localeCompare(b.name, 'nl'));
+function clubPicker() {
+  if (!CLUB_MEMBERS.length) return '';
+  const ranks = [...new Set(CLUB_MEMBERS.map(m => m.rank || 'NG'))];
+  return `<div class="card"><h2>Clubleden kiezen <span class="pill">${CLUB_MEMBERS.length} leden</span></h2>
+    <form data-form="club">
+      <div class="row" style="margin-bottom:8px"><input type="search" data-clubq placeholder="Zoek op naam" style="width:200px" autocomplete="off">
+        <select data-clubrank><option value="">Alle klassementen</option>${['B', 'C', 'D', 'E'].filter(c => ranks.some(r => r[0] === c)).map(c => `<option value="${c}">${c}-spelers</option>`).join('')}${ranks.map(r => `<option value="${r}">${r}</option>`).join('')}</select>
+        <button type="button" class="sm" data-action="club-all">Alle getoonde aanvinken</button><button type="button" class="sm" data-action="club-none">Niets aanvinken</button></div>
+      <div class="club-list">${CLUB_MEMBERS.map((m, i) => { const inl = nameTaken(m.name); return `<label class="${inl ? 'in' : ''}" data-rank="${m.rank || 'NG'}" data-name="${esc(nameKey(m.name))}"><input type="checkbox" name="m" value="${i}" ${inl ? 'checked disabled' : ''}> ${esc(m.name)} <span class="small muted">${m.rank || 'NG'}</span></label>`; }).join('')}</div>
+      <div class="row" style="margin-top:10px"><button class="primary">Aangevinkte spelers toevoegen</button><span class="hint">Grijs = staat al in de lijst. Klassement fout? Pas het hieronder aan in de spelerslijst.</span></div>
+    </form></div>`;
+}
+function clubFilter() {
+  const q = nameKey($app.querySelector('[data-clubq]')?.value || ''), r = $app.querySelector('[data-clubrank]')?.value || '';
+  $app.querySelectorAll('.club-list label').forEach(l => { l.hidden = !(l.dataset.name.includes(q) && (!r || (r.length === 1 ? l.dataset.rank[0] === r : l.dataset.rank === r))); });
+}
 var logoOk = true, photoOk = true;   // false zodra een afbeelding niet laadt (offline)
 const CLUB_LOGO = 'https://www.sterkestut.be/wp-content/uploads/2021/01/strek-logo-1.png';
 const CLUB_PHOTO = 'https://www.sterkestut.be/wp-content/uploads/2024/09/2024-09-11-oosterzele-%C2%A9DDL-Tafeltennisclub-TTC-Sterke-Stut-Oosterzele-22-1024x591.jpg';
@@ -814,6 +838,7 @@ function viewPlayers() {
       <label><input type="checkbox" data-set="consolation" ${s.settings.consolation ? 'checked' : ''}> Troosttabel voor de anderen</label>
       ${hcSelect(s)}
     </div></div>`;
+    h += clubPicker();
     h += `<div class="card"><h2>Spelers toevoegen</h2>
       <form data-form="add-player" class="row"><input name="name" placeholder="Naam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
       <details style="margin-top:10px"><summary>Meerdere spelers tegelijk plakken</summary>
@@ -1117,6 +1142,10 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   const fd = new FormData(f);
   if (kind === 'add-player') { addPlayers([{ name: fd.get('name').trim(), rank: fd.get('rank') }]); setTimeout(() => $app.querySelector('form[data-form=add-player] input[name=name]')?.focus(), 0); }
+  if (kind === 'club') {
+    const n = addPlayers(fd.getAll('m').map(i => CLUB_MEMBERS[+i]).filter(Boolean).map(m => ({ name: m.name, rank: m.rank })));
+    toast(n ? `${n} speler${n > 1 ? 's' : ''} toegevoegd` : 'Vink eerst spelers aan.', !n);
+  }
   if (kind === 'bulk') {
     const list = String(fd.get('bulk')).split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
       const parts = l.split(/[;\t,]/).map(x => x.trim());
@@ -1148,6 +1177,7 @@ document.addEventListener('submit', e => {
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-action]'); if (!el) return;
   const a = el.dataset.action, id = el.dataset.id;
+  if (a === 'club-all' || a === 'club-none') { $app.querySelectorAll('.club-list label:not([hidden]) input:not(:disabled)').forEach(c => { c.checked = a === 'club-all'; }); return; }
   if (a === 'close-modal') { if (e.target === el) closeModal(); return; }
   if (el.tagName === 'INPUT') return;
   switch (a) {
@@ -1190,6 +1220,7 @@ document.addEventListener('click', e => {
     }
   }
 });
+document.addEventListener('input', e => { if (e.target.matches('[data-clubq],[data-clubrank]')) clubFilter(); });
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.dataset.set) {
