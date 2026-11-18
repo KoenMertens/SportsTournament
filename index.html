@@ -872,10 +872,10 @@ async function tabt(method, fields) {
   let last;
   for (const ct of ['text/plain;charset=UTF-8', 'text/xml;charset=UTF-8']) {     // eerst zonder CORS-voorvraag
     try {
-      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 15000);
-      const r = await fetch(VTTL_URL, { method: 'POST', headers: { 'Content-Type': ct }, body, signal: ctl.signal });
-      const xml = new DOMParser().parseFromString(await r.text(), 'text/xml');
-      clearTimeout(timer);
+      // tijdslimiet zonder AbortSignal (die kan niet in elk venster doorgegeven worden)
+      const late = new Promise((_, no) => setTimeout(() => no(new Error('geen antwoord binnen 15 seconden')), 15000));
+      const r = await Promise.race([fetch(VTTL_URL, { method: 'POST', headers: { 'Content-Type': ct }, body }), late]);
+      const xml = new DOMParser().parseFromString(await Promise.race([r.text(), late]), 'text/xml');
       const fault = [...xml.getElementsByTagName('*')].find(e => e.localName === 'faultstring');
       if (fault) throw new Error('VTTL meldt: ' + fault.textContent);
       if (!r.ok || xml.getElementsByTagName('parsererror').length) throw new Error('onverwacht antwoord van VTTL (' + r.status + ')');
@@ -892,7 +892,7 @@ const vttlRank = r => { r = String(r || '').toUpperCase(); return r[0] === 'A' ?
 async function vttlRun(what, fn) {
   vttlBusy = what; vttlErr = ''; render();
   try { await fn(); }
-  catch (e) { vttlErr = `${what} lukt niet (${e.name === 'AbortError' ? 'geen antwoord' : e.message || 'geen verbinding'}). Controleer het internet; lukt het dan nog niet, dan laat VTTL dit niet toe vanuit de browser. De lijst van de eigen club en "Meerdere spelers tegelijk plakken" blijven werken.`; }
+  catch (e) { vttlErr = `${what} lukt niet (${e.message || 'geen verbinding'}). Controleer het internet; lukt het dan nog niet, dan laat VTTL dit niet toe vanuit de browser. De lijst van de eigen club en "Meerdere spelers tegelijk plakken" blijven werken.`; }
   vttlBusy = ''; render();
 }
 const vttlLoadClubs = () => vttlRun('Clubs ophalen bij VTTL', async () => {
