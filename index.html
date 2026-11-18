@@ -787,8 +787,73 @@ function render() {
 }
 
 /* ---------- Spelers ---------- */
-// Ledenlijst van de club (bron: sterkestut.be/leden), één lid per lijn als "Naam;Klassement".
+// Ledenlijst van de club (bron: sterkestut.be/leden, 18/11/2026), één lid per lijn als "Naam;Klassement".
 const CLUB_MEMBERS = `
+Geert De Moor;D0
+Carl Pauwels;C2
+Jeroen De Smet;C2
+Pieter Pien;C6
+Tim Claessens;C6
+Bram De Smet;D0
+Sebastien De Cuyper;C6
+Filiep Van Grembergen;D2
+Sören De Clercq;C6
+Kristof De Cuyper;D2
+Ward De Leeuw;D2
+Koen Mertens;D6
+Jelle De Sutter;D4
+Kris Verbert;D2
+Evert Docker;D4
+Artur Pauwels;E0
+Raphael Van Bever;E6
+Benny Steyaert;D4
+Willy Vandekerckhove;E6
+Ben Braeckman;E0
+Wim De Moerloose;E4
+Henk Van Herrewege;E2
+Patrick De Sutter;E6
+Bjorn Wollaert;E4
+Thomas Lavens;E6
+Hans Pien;E6
+Filip Props;E4
+Samuel Auquier;E2
+Willy De Sutter;E6
+Pepijn Hutse;E4
+Alex Bondroit;E6
+Hans Braeckman;E6
+Eddy Van Bever;E6
+Brent De Clercq;E6
+Yarne Van Herrewege;E6
+Jurgen De Cuyper;E6
+Oussama Issa;E6
+Tom Oosterlinck;NG
+Fred Spiessens;E6
+Martin Schreyen;E6
+Helena Guns;NG
+Mathijs De Sutter;NG
+Senne De Moerloose;NG
+Luc Symoens;E6
+Ken Waerie;NG
+Linde Eeckhaut;NG
+Karolina Pauwels;NG
+Stan Dequinnemaere;NG
+Wim De Vos;NG
+Toon Delporte;NG
+Niels Lewyllie Claes;NG
+Arthur Everaert;NG
+Els Vandierendonck;NG
+Paulien Guns;NG
+Wilfried Verdonck;E6
+Wannes Balcaen;NG
+Astor Beschuyt;NG
+Arina Chumak;NG
+Pauline De Coene;NG
+Marlon De Wolf;NG
+Leonie Deconinck;NG
+Olivier Dequinnemaere;NG
+Kacper Pauwels;NG
+Bart Van Steendam;NG
+Grim Vanhouwe;NG
 `.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [name, rank = ''] = l.split(';').map(x => x.trim()); return { name, rank: TT.RANKS.includes(rank.toUpperCase()) ? rank.toUpperCase() : '' }; })
   .sort((a, b) => TT.rankValue(a.rank) - TT.rankValue(b.rank) || a.name.localeCompare(b.name, 'nl'));
 function clubPicker() {
