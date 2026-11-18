@@ -17,7 +17,10 @@ Eén bestand, `index.html`, dat volledig in de browser draait. Geen server, geen
 - Eindrondes volgens de vaste clubtabellen voor 2 tot 8 poules ("Tabellen voor eindrondes"): één tabel voor de 1ste en 2de, één voor de 3de en 4de.
 - 2 winnende sets tot 11; halve finales, finale en wedstrijd om plaats 3 naar 3 winnende sets (instelbaar).
 - Poulestand: matchpunten (winst 2, verlies 1, forfait 0), bij gelijkstand het onderlinge resultaat (punten, sets, balpunten).
-- Voorgift (optioneel): de laagst geklasseerde speelt tot 11, de hoogst geklasseerde tot 11 plus 1 punt per 2 klassementen verschil. De app toont de doelscores per wedstrijd en op de briefjes, en controleert de setstanden daarop.
+- Puntenaanpassing (Instellingen): **voorgift** (standaard: de laagst geklasseerde begint elke set met 1 punt per 2 klassementen verschil voorsprong, iedereen speelt tot 11), **handicap** (oud systeem: de hoogst geklasseerde speelt verder dan 11) of **geen aanpassing**. De app toont dit per wedstrijd en op de briefjes, en controleert de setstanden daarop.
+- Volgorde in een poule van 4: 1-4, 2-3, 1-3, 2-4, 1-2, 3-4 (hoogst geplaatste eerst).
+- In de eindrondes zijn wedstrijden die al gespeeld kunnen worden groen gekleurd.
+- Logo en foto komen van sterkestut.be; zonder internet verdwijnen ze gewoon en werkt de rest verder.
 - Bij poulewedstrijden stelt de app een poulegenoot voor die telt.
 - Wedstrijdbriefjes kun je afdrukken, per poule of voor de lopende wedstrijden.
 
