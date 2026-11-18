@@ -20,7 +20,8 @@ Eén bestand, `index.html`, dat volledig in de browser draait. Geen server, geen
 - Puntenaanpassing (Instellingen): **voorgift** (standaard: de laagst geklasseerde begint elke set met 1 punt per 2 klassementen verschil voorsprong, iedereen speelt tot 11), **handicap** (oud systeem: de hoogst geklasseerde speelt verder dan 11) of **geen aanpassing**. De app toont dit per wedstrijd en op de briefjes, en controleert de setstanden daarop.
 - Volgorde in een poule van 4: 1-4, 2-3, 1-3, 2-4, 1-2, 3-4 (hoogst geplaatste eerst).
 - In de eindrondes zijn wedstrijden die al gespeeld kunnen worden groen gekleurd.
-- Logo en foto komen van sterkestut.be; zonder internet verdwijnen ze gewoon en werkt de rest verder.
+- Clubleden kiezen: standaard de vaste ledenlijst van TTC Sterke Stut (werkt offline). Via de keuzelijst **Club** kun je de leden en klassementen van een andere club ophalen bij VTTL (TabT-API, zonder login; heeft internet nodig).
+- De clubfoto zit in de repo (`clubfoto.jpg`); het logo komt van sterkestut.be en verdwijnt gewoon zonder internet.
 - Bij poulewedstrijden stelt de app een poulegenoot voor die telt.
 - Wedstrijdbriefjes kun je afdrukken, per poule of voor de lopende wedstrijden.
 
