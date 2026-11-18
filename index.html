@@ -60,10 +60,11 @@ tr.q td{background:var(--hi)}
 .notice.ok{background:#eaf7ee;border-color:#b6e0c2}
 .champ{font-size:20px;font-weight:700}
 /* club (TTC Sterke Stut): afbeeldingen komen van sterkestut.be en verdwijnen als ze niet laden (offline) */
-.logo{height:38px;background:#fff;border-radius:6px;padding:3px 6px;display:block}
+.logo{height:40px;border-radius:5px;display:block;border:1px solid rgba(255,255,255,.35)}
 .hero{position:relative;border-radius:10px;overflow:hidden;margin-bottom:14px;background:#18202f;text-align:center}
 .hero .photo{max-width:100%;width:auto;height:auto;max-height:300px;display:block;margin:0 auto}
-.hero .logo{position:absolute;top:12px;left:12px;height:60px;padding:5px 8px;box-shadow:0 1px 6px rgba(0,0,0,.35)}
+.hero .logo{position:absolute;top:12px;left:12px;height:64px;box-shadow:0 1px 6px rgba(0,0,0,.35)}
+@media (max-width:1000px){.hero .logo{display:none}}   /* smal scherm: logo zou over de foto vallen */
 .hero div{padding:8px 16px 10px;text-align:left;color:#fff;font-size:20px;font-weight:650}
 .hero a{color:#fff;font-size:13px;font-weight:400;margin-left:8px}
 body.display .logo{height:48px}
@@ -133,7 +134,7 @@ body.display .pill{background:#26324a;color:#c3cde0}
 </head>
 <body>
 <header>
-  <a href="https://www.sterkestut.be/" target="_blank" rel="noopener" title="TTC Sterke Stut"><img class="logo" src="https://www.sterkestut.be/wp-content/uploads/2021/01/strek-logo-1.png" alt="TTC Sterke Stut" onerror="this.parentNode.remove()"></a>
+  <a href="https://www.sterkestut.be/" target="_blank" rel="noopener" title="TTC Sterke Stut"><img class="logo" src="logo.png" alt="TTC Sterke Stut" onerror="this.parentNode.remove()"></a>
   <h1 id="title">Clubkampioenschap</h1>
   <nav id="nav"></nav>
   <div class="hdr-right">
@@ -982,7 +983,7 @@ function clubFilter() {
 }
 var logoOk = true, photoOk = true, photoLocal = true;   // clubfoto.jpg naast de pagina, anders de foto van sterkestut.be
 //   // false zodra een afbeelding niet laadt (offline)
-const CLUB_LOGO = 'https://www.sterkestut.be/wp-content/uploads/2021/01/strek-logo-1.png';
+const CLUB_LOGO = 'logo.png';   // logo van TTC Sterke Stut (wit op transparant) op de clubkleur gezet
 const CLUB_PHOTO = 'https://www.sterkestut.be/wp-content/uploads/2024/09/2024-09-11-oosterzele-%C2%A9DDL-Tafeltennisclub-TTC-Sterke-Stut-Oosterzele-22-1024x591.jpg';
 function rankSelect(name, val) {
   return `<select name="${name}"><option value="">–</option>${TT.RANKS.map(r => `<option ${r === val ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
