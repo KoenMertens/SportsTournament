@@ -863,7 +863,7 @@ function clubPicker() {
     <form data-form="club">
       <div class="row" style="margin-bottom:8px"><input type="search" data-clubq placeholder="Zoek op naam" style="width:200px" autocomplete="off">
         <select data-clubrank><option value="">Alle klassementen</option>${['B', 'C', 'D', 'E'].filter(c => ranks.some(r => r[0] === c)).map(c => `<option value="${c}">${c}-spelers</option>`).join('')}${ranks.map(r => `<option value="${r}">${r}</option>`).join('')}</select>
-        <button type="button" class="sm" data-action="club-all">Alle getoonde aanvinken</button><button type="button" class="sm" data-action="club-none">Niets aanvinken</button></div>
+        <button type="button" class="sm" data-action="club-all">Alle getoonde aanvinken</button><button type="button" class="sm" data-action="club-none">Niets aanvinken</button><button type="button" class="sm" data-action="club-random" title="Om te testen: vinkt 25 willekeurige leden aan">🎲 25 willekeurige (test)</button></div>
       <div class="club-list">${CLUB_MEMBERS.map((m, i) => { const inl = nameTaken(m.name); return `<label class="${inl ? 'in' : ''}" data-rank="${m.rank || 'NG'}" data-name="${esc(nameKey(m.name))}"><input type="checkbox" name="m" value="${i}" ${inl ? 'checked disabled' : ''}> ${esc(m.name)} <span class="small muted">${m.rank || 'NG'}</span></label>`; }).join('')}</div>
       <div class="row" style="margin-top:10px"><button class="primary">Aangevinkte spelers toevoegen</button><span class="hint">Grijs = staat al in de lijst. Klassement fout? Pas het hieronder aan in de spelerslijst.</span></div>
     </form></div>`;
@@ -1242,6 +1242,13 @@ document.addEventListener('submit', e => {
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-action]'); if (!el) return;
   const a = el.dataset.action, id = el.dataset.id;
+  if (a === 'club-random') {
+    const free = [...$app.querySelectorAll('.club-list input:not(:disabled)')];
+    free.forEach(c => { c.checked = false; });
+    free.map(c => [Math.random(), c]).sort((x, y) => x[0] - y[0]).map(x => x[1]).slice(0, 25).forEach(c => { c.checked = true; });
+    toast(`${Math.min(25, free.length)} willekeurige leden aangevinkt. Klik op "Aangevinkte spelers toevoegen".`);
+    return;
+  }
   if (a === 'club-all' || a === 'club-none') { $app.querySelectorAll('.club-list label:not([hidden]) input:not(:disabled)').forEach(c => { c.checked = a === 'club-all'; }); return; }
   if (a === 'close-modal') { if (e.target === el) closeModal(); return; }
   if (el.tagName === 'INPUT') return;
