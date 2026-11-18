@@ -863,7 +863,7 @@ const sortMembers = l => l.sort((a, b) => TT.rankValue(a.rank) - TT.rankValue(b.
 const VTTL_URL = 'https://api.vttl.be/', VKEY = 'tt-vttl-club';
 const CKEY = 'tt-vttl-clubs';
 let vttl = null, vttlClubs = null, vttlBusy = '', vttlErr = '';     // vttl = {code, name, members} of null = eigen club
-try { vttl = JSON.parse(localStorage.getItem(VKEY)) || null; if (vttl && !Array.isArray(vttl.members)) vttl = null; } catch (e) { vttl = null; }
+try { localStorage.removeItem(VKEY); } catch (e) {}     // de kiezer start altijd op de eigen club
 try { vttlClubs = JSON.parse(localStorage.getItem(CKEY)) || null; if (!Array.isArray(vttlClubs) || !vttlClubs.length) vttlClubs = null; } catch (e) { vttlClubs = null; }
 const pickList = () => vttl ? vttl.members : CLUB_MEMBERS;
 const xmlEsc = t => String(t).replace(/[<>&'"]/g, c => `&#${c.charCodeAt(0)};`);
@@ -904,15 +904,18 @@ async function tabtCall(c, method, fields) {
 }
 // De eerste keer wordt gezocht welke schrijfwijze VTTL aanvaardt (volgens de WSDL, anders de
 // gekende varianten); daarna wordt die onthouden.
-let tabtCfg = null;
+// VTTL schrijft niet elk verzoek op dezelfde manier (bv. GetClubs zonder en GetMembers met
+// "Request"), dus de werkende variant wordt per verzoek gezocht en onthouden.
+const tabtCfg = {};
 async function tabt(method, fields) {
-  if (tabtCfg) return tabtCall(tabtCfg, method, fields);
+  if (tabtCfg[method]) return tabtCall(tabtCfg[method], method, fields);
   const cands = [];
   for (const base of VTTL_BASES) { try { const c = await tabtWsdl(base); if (c) cands.push(c); } catch (e) {} }
-  for (const base of VTTL_BASES) for (const sfx of ['Request', '']) cands.push({ url: base, ns: TABT_NS, q: true, sfx });
+  const known = Object.values(tabtCfg).map(c => c.url).filter(u => VTTL_BASES.includes(u));
+  for (const base of [...new Set([...known, ...VTTL_BASES])]) for (const sfx of ['Request', '']) cands.push({ url: base, ns: TABT_NS, q: true, sfx });
   let last;
   for (const c of cands) {
-    try { const xml = await tabtCall(c, method, fields); tabtCfg = c; return xml; }
+    try { const xml = await tabtCall(c, method, fields); tabtCfg[method] = c; return xml; }
     catch (e) { if (!last || e.fault) last = e; if (e.fault && !e.unknown) throw e; }
   }
   const w = cands.filter(c => c.ops).map(c => `${c.url} ${c.ns} ${c.ops[method] || '?'}`).join(' | ');
@@ -931,28 +934,37 @@ async function vttlRun(what, fn) {
   catch (e) { vttlErr = `${what} lukt niet (${e.message || 'geen verbinding'}). ${e.fault || /herkend/.test(e.message || '') ? 'VTTL antwoordt, maar anders dan verwacht.' : 'Controleer het internet.'} De lijst van de eigen club en "Meerdere spelers tegelijk plakken" blijven werken.`; }
   vttlBusy = ''; render();
 }
-const vttlLoadClubs = () => vttlRun('Clubs ophalen bij VTTL', async () => {
+const vttlFetchClubs = async () => {
   const xml = await tabt('GetClubs', {}), rows = xmlRows(xml, 'ClubEntries').filter(c => c.UniqueIndex && c.Name);
   if (!rows.length) throw new Error('geen clubs herkend in het antwoord: ' + xmlNames(xml));
   vttlClubs = rows.map(c => ({ code: c.UniqueIndex, name: c.LongName || c.Name })).sort((a, b) => a.name.localeCompare(b.name, 'nl'));
   try { localStorage.setItem(CKEY, JSON.stringify(vttlClubs)); } catch (e) {}
-});
+};
+const vttlLoadClubs = () => vttlRun('Clubs ophalen bij VTTL', vttlFetchClubs);
+// Bij het openen stil de clublijst ophalen (als er internet is), zodat de keuzelijst meteen gevuld is.
+function vttlWarm() { if (!vttlClubs && navigator.onLine !== false && !isDisplay()) vttlFetchClubs().then(() => { if (!vttlBusy && !document.querySelector('.modal-bg') && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) render(); }, () => {}); }
 const vttlLoadMembers = code => vttlRun('Leden ophalen bij VTTL', async () => {
   code = String(code || '').trim(); if (!code) throw new Error('kies eerst een club');
   const xml = await tabt('GetMembers', { Club: code }), rows = xmlRows(xml, 'MemberEntries').filter(m => m.LastName || m.FirstName);
   if (!rows.length) throw new Error('geen leden herkend voor club ' + code + ': ' + xmlNames(xml));
   const members = sortMembers(rows.map(m => ({ name: cleanName(`${niceName(m.FirstName || '')} ${niceName(m.LastName || '')}`), rank: vttlRank(m.Ranking) })));
   vttl = { code, name: vttlClubs?.find(c => c.code === code)?.name || code, members, at: Date.now() };
-  try { localStorage.setItem(VKEY, JSON.stringify(vttl)); } catch (e) {}
 });
+// Keuzelijst van clubs: de eigen club staat altijd bovenaan en is de standaard; de zoekterm
+// (deel van de naam of de code) beperkt de andere clubs.
+let clubFind = '';
+function clubOptions() {
+  const cur = vttl ? vttl.code : '', q = nameKey(clubFind);
+  const hit = (vttlClubs || []).filter(c => c.code === cur || !q || nameKey(c.name + ' ' + c.code).includes(q));
+  return `<option value="" ${cur ? '' : 'selected'}>TTC Sterke Stut</option>
+    ${vttl && !(vttlClubs || []).some(c => c.code === cur) ? `<option value="${esc(cur)}" selected>${esc(vttl.name)}</option>` : ''}
+    ${vttlClubs ? hit.map(c => `<option value="${esc(c.code)}" ${c.code === cur ? 'selected' : ''}>${esc(c.name)} (${esc(c.code)})</option>`).join('') + (q && hit.length < (cur ? 2 : 1) ? '<option disabled>Geen club gevonden</option>' : '')
+      : '<option value="__load">Andere club… (lijst ophalen bij VTTL)</option>'}`;
+}
 function clubPicker() {
   const list = pickList(), ranks = [...new Set(list.map(m => m.rank || 'NG'))];
-  const cur = vttl ? vttl.code : '';
-  const pick = `<div class="row" style="margin-bottom:10px"><label><b>Club</b> <select data-vttlpick ${vttlBusy ? 'disabled' : ''} style="max-width:340px">
-        <option value="">TTC Sterke Stut</option>
-        ${vttl && !(vttlClubs || []).some(c => c.code === cur) ? `<option value="${esc(cur)}" selected>${esc(vttl.name)}</option>` : ''}
-        ${vttlClubs ? vttlClubs.map(c => `<option value="${esc(c.code)}" ${c.code === cur ? 'selected' : ''}>${esc(c.name)} (${esc(c.code)})</option>`).join('') : '<option value="__load">Andere club… (lijst ophalen bij VTTL)</option>'}
-      </select></label>
+  const pick = `<div class="row" style="margin-bottom:10px"><label><b>Club</b> <select data-vttlpick ${vttlBusy ? 'disabled' : ''} style="max-width:340px">${clubOptions()}</select></label>
+      ${vttlClubs ? `<input type="search" data-clubfind value="${esc(clubFind)}" placeholder="Zoek club (deel van de naam)" style="width:230px" autocomplete="off">` : ''}
       ${vttlBusy ? `<span class="hint">⏳ ${esc(vttlBusy)}…</span>` : vttl ? `<span class="hint">Leden en klassementen van VTTL, opgehaald op ${new Date(vttl.at).toLocaleDateString('nl-BE')}.</span>` : ''}</div>
       ${vttlErr ? `<p class="err">${esc(vttlErr)}</p>` : ''}`;
   return `<div class="card"><h2>Clubleden kiezen <span class="pill">${esc(vttl ? vttl.name : 'TTC Sterke Stut')} · ${list.length} leden</span></h2>
@@ -1388,13 +1400,16 @@ document.addEventListener('click', e => {
     }
   }
 });
-document.addEventListener('input', e => { if (e.target.matches('[data-clubq],[data-clubrank]')) clubFilter(); });
+document.addEventListener('input', e => {
+  if (e.target.matches('[data-clubq],[data-clubrank]')) clubFilter();
+  if (e.target.matches('[data-clubfind]')) { clubFind = e.target.value; const sel = $app.querySelector('[data-vttlpick]'); if (sel) sel.innerHTML = clubOptions(); }
+});
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.matches('[data-vttlpick]')) {
     if (el.value === '__load') vttlLoadClubs();
     else if (el.value) vttlLoadMembers(el.value);
-    else { vttl = null; vttlErr = ''; try { localStorage.removeItem(VKEY); } catch (e) {} render(); }
+    else { vttl = null; vttlErr = ''; render(); }
     return;
   }
   if (el.dataset.set) {
@@ -1421,13 +1436,20 @@ document.addEventListener('change', e => {
     });
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && e.target.matches?.('[data-clubfind]')) {      // Enter in het zoekveld: is er precies één club, kies die
+    const q = nameKey(clubFind), hit = q ? (vttlClubs || []).filter(c => nameKey(c.name + ' ' + c.code).includes(q)) : [];
+    if (hit.length === 1) vttlLoadMembers(hit[0].code);
+  }
+});
 window.addEventListener('storage', e => { if (e.key === KEY) { load(); if (!$modal.innerHTML) render(); } });
 window.addEventListener('hashchange', render);
 window.addEventListener('beforeunload', persist);
 setInterval(() => { if (isDisplay()) { load(); render(); } }, 5000);
 
 load();
+vttlWarm();
 if (state.stage !== 'setup') tab = state.stage === 'draw' ? 'poules' : 'wedstrijden';
 render();
 </script>
