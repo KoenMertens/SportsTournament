@@ -62,7 +62,7 @@ tr.q td{background:var(--hi)}
 /* club (TTC Sterke Stut): afbeeldingen komen van sterkestut.be en verdwijnen als ze niet laden (offline) */
 .logo{height:38px;background:#fff;border-radius:6px;padding:3px 6px;display:block}
 .hero{position:relative;border-radius:10px;overflow:hidden;margin-bottom:14px;background:#18202f;text-align:center}
-.hero .photo{width:100%;height:auto;max-height:85vh;object-fit:contain;display:block;margin:0 auto}
+.hero .photo{max-width:100%;width:auto;height:auto;max-height:300px;display:block;margin:0 auto}
 .hero .logo{position:absolute;top:12px;left:12px;height:60px;padding:5px 8px;box-shadow:0 1px 6px rgba(0,0,0,.35)}
 .hero div{padding:8px 16px 10px;text-align:left;color:#fff;font-size:20px;font-weight:650}
 .hero a{color:#fff;font-size:13px;font-weight:400;margin-left:8px}
@@ -867,23 +867,59 @@ try { vttl = JSON.parse(localStorage.getItem(VKEY)) || null; if (vttl && !Array.
 try { vttlClubs = JSON.parse(localStorage.getItem(CKEY)) || null; if (!Array.isArray(vttlClubs) || !vttlClubs.length) vttlClubs = null; } catch (e) { vttlClubs = null; }
 const pickList = () => vttl ? vttl.members : CLUB_MEMBERS;
 const xmlEsc = t => String(t).replace(/[<>&'"]/g, c => `&#${c.charCodeAt(0)};`);
-async function tabt(method, fields) {
-  const body = `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tab="http://api.frenoy.net/TabTAPI"><soapenv:Body><tab:${method}Request>${Object.entries(fields).map(([k, v]) => `<tab:${k}>${xmlEsc(v)}</tab:${k}>`).join('')}</tab:${method}Request></soapenv:Body></soapenv:Envelope>`;
+const TABT_NS = 'http://api.frenoy.net/TabTAPI', VTTL_BASES = [VTTL_URL, VTTL_URL + '0.7/'];
+const xmlAll = (xml, n) => [...xml.getElementsByTagName('*')].filter(e => e.localName === n);
+// tijdslimiet zonder AbortSignal (die kan niet in elk venster doorgegeven worden)
+const timed = (p, ms = 15000) => { const late = new Promise((_, no) => setTimeout(() => no(new Error('geen antwoord binnen 15 seconden')), ms)); late.catch(() => {}); return Promise.race([p, late]); };
+// Leest de WSDL van VTTL: adres, namespace en de juiste naam van elk verzoek.
+async function tabtWsdl(base) {
+  const r = await timed(fetch(base + '?wsdl'), 8000), xml = new DOMParser().parseFromString(await timed(r.text(), 8000), 'text/xml');
+  const def = xmlAll(xml, 'definitions')[0]; if (!def) return null;
+  const schema = xmlAll(xml, 'schema')[0], ops = {};
+  xmlAll(xml, 'portType').forEach(pt => [...pt.children].filter(o => o.localName === 'operation').forEach(o => {
+    const msg = ([...o.children].find(c => c.localName === 'input')?.getAttribute('message') || '').split(':').pop();
+    const part = [...(xmlAll(xml, 'message').find(x => x.getAttribute('name') === msg)?.children || [])].find(c => c.localName === 'part');
+    const el = (part?.getAttribute('element') || '').split(':').pop();
+    if (el) ops[o.getAttribute('name')] = el;
+  }));
+  if (!Object.keys(ops).length) return null;
+  const addr = xmlAll(xml, 'address').map(x => x.getAttribute('location') || '').find(l => l.startsWith(VTTL_URL));
+  return { url: addr || base, ns: schema?.getAttribute('targetNamespace') || def.getAttribute('targetNamespace') || TABT_NS, ops, q: schema?.getAttribute('elementFormDefault') !== 'unqualified' };
+}
+async function tabtCall(c, method, fields) {
+  const el = c.ops ? c.ops[method] || method + 'Request' : method + c.sfx, pre = c.q ? 'tab:' : '';
+  const body = `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tab="${xmlEsc(c.ns)}"><soapenv:Body><tab:${el}>${Object.entries(fields).map(([k, v]) => `<${pre}${k}>${xmlEsc(v)}</${pre}${k}>`).join('')}</tab:${el}></soapenv:Body></soapenv:Envelope>`;
   let last;
   for (const ct of ['text/plain;charset=UTF-8', 'text/xml;charset=UTF-8']) {     // eerst zonder CORS-voorvraag
     try {
-      // tijdslimiet zonder AbortSignal (die kan niet in elk venster doorgegeven worden)
-      const late = new Promise((_, no) => setTimeout(() => no(new Error('geen antwoord binnen 15 seconden')), 15000));
-      const r = await Promise.race([fetch(VTTL_URL, { method: 'POST', headers: { 'Content-Type': ct }, body }), late]);
-      const xml = new DOMParser().parseFromString(await Promise.race([r.text(), late]), 'text/xml');
-      const fault = [...xml.getElementsByTagName('*')].find(e => e.localName === 'faultstring');
-      if (fault) throw new Error('VTTL meldt: ' + fault.textContent);
+      const r = await timed(fetch(c.url, { method: 'POST', headers: { 'Content-Type': ct }, body }));
+      const xml = new DOMParser().parseFromString(await timed(r.text()), 'text/xml');
+      const fault = xmlAll(xml, 'faultstring')[0];
+      if (fault) throw Object.assign(new Error('VTTL meldt: ' + fault.textContent), { fault: true, unknown: /not present|not found|Procedure|Function/i.test(fault.textContent) });
       if (!r.ok || xml.getElementsByTagName('parsererror').length) throw new Error('onverwacht antwoord van VTTL (' + r.status + ')');
       return xml;
-    } catch (e) { last = e; if (/^VTTL meldt/.test(e.message)) break; }
+    } catch (e) { last = e; if (e.fault) break; }
   }
   throw last;
 }
+// De eerste keer wordt gezocht welke schrijfwijze VTTL aanvaardt (volgens de WSDL, anders de
+// gekende varianten); daarna wordt die onthouden.
+let tabtCfg = null;
+async function tabt(method, fields) {
+  if (tabtCfg) return tabtCall(tabtCfg, method, fields);
+  const cands = [];
+  for (const base of VTTL_BASES) { try { const c = await tabtWsdl(base); if (c) cands.push(c); } catch (e) {} }
+  for (const base of VTTL_BASES) for (const sfx of ['Request', '']) cands.push({ url: base, ns: TABT_NS, q: true, sfx });
+  let last;
+  for (const c of cands) {
+    try { const xml = await tabtCall(c, method, fields); tabtCfg = c; return xml; }
+    catch (e) { if (!last || e.fault) last = e; if (e.fault && !e.unknown) throw e; }
+  }
+  const w = cands.filter(c => c.ops).map(c => `${c.url} ${c.ns} ${c.ops[method] || '?'}`).join(' | ');
+  if (last) last.message += ` [WSDL: ${w || 'niet gevonden'}]`;
+  throw last;
+}
+const xmlNames = xml => [...new Set([...xml.getElementsByTagName('*')].map(e => e.localName))].slice(0, 14).join(', ');
 // Leest alle elementen <tag> uit het antwoord als {veld: tekst} (alleen rechtstreekse tekstvelden).
 const xmlRows = (xml, tag) => [...xml.getElementsByTagName('*')].filter(e => e.localName === tag)
   .map(e => Object.fromEntries([...e.children].filter(c => !c.children.length).map(c => [c.localName, c.textContent.trim()])));
@@ -892,19 +928,19 @@ const vttlRank = r => { r = String(r || '').toUpperCase(); return r[0] === 'A' ?
 async function vttlRun(what, fn) {
   vttlBusy = what; vttlErr = ''; render();
   try { await fn(); }
-  catch (e) { vttlErr = `${what} lukt niet (${e.message || 'geen verbinding'}). Controleer het internet; lukt het dan nog niet, dan laat VTTL dit niet toe vanuit de browser. De lijst van de eigen club en "Meerdere spelers tegelijk plakken" blijven werken.`; }
+  catch (e) { vttlErr = `${what} lukt niet (${e.message || 'geen verbinding'}). ${e.fault || /herkend/.test(e.message || '') ? 'VTTL antwoordt, maar anders dan verwacht.' : 'Controleer het internet.'} De lijst van de eigen club en "Meerdere spelers tegelijk plakken" blijven werken.`; }
   vttlBusy = ''; render();
 }
 const vttlLoadClubs = () => vttlRun('Clubs ophalen bij VTTL', async () => {
-  const rows = xmlRows(await tabt('GetClubs', {}), 'ClubEntries').filter(c => c.UniqueIndex && c.Name);
-  if (!rows.length) throw new Error('geen clubs ontvangen');
+  const xml = await tabt('GetClubs', {}), rows = xmlRows(xml, 'ClubEntries').filter(c => c.UniqueIndex && c.Name);
+  if (!rows.length) throw new Error('geen clubs herkend in het antwoord: ' + xmlNames(xml));
   vttlClubs = rows.map(c => ({ code: c.UniqueIndex, name: c.LongName || c.Name })).sort((a, b) => a.name.localeCompare(b.name, 'nl'));
   try { localStorage.setItem(CKEY, JSON.stringify(vttlClubs)); } catch (e) {}
 });
 const vttlLoadMembers = code => vttlRun('Leden ophalen bij VTTL', async () => {
   code = String(code || '').trim(); if (!code) throw new Error('kies eerst een club');
-  const rows = xmlRows(await tabt('GetMembers', { Club: code }), 'MemberEntries').filter(m => m.LastName || m.FirstName);
-  if (!rows.length) throw new Error('geen leden gevonden voor club ' + code);
+  const xml = await tabt('GetMembers', { Club: code }), rows = xmlRows(xml, 'MemberEntries').filter(m => m.LastName || m.FirstName);
+  if (!rows.length) throw new Error('geen leden herkend voor club ' + code + ': ' + xmlNames(xml));
   const members = sortMembers(rows.map(m => ({ name: cleanName(`${niceName(m.FirstName || '')} ${niceName(m.LastName || '')}`), rank: vttlRank(m.Ranking) })));
   vttl = { code, name: vttlClubs?.find(c => c.code === code)?.name || code, members, at: Date.now() };
   try { localStorage.setItem(VKEY, JSON.stringify(vttl)); } catch (e) {}
