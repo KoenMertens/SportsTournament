@@ -92,6 +92,8 @@ body.display .logo{height:48px}
 .bm .tbd{color:var(--muted);font-style:italic}
 .bm.bye{opacity:.55;cursor:default}
 /* draw */
+table.pb{font-size:14px}table.pb th,table.pb td{padding-left:3px;padding-right:3px}
+.mnr{display:inline-block;min-width:30px;color:var(--muted)}
 .drawp{cursor:pointer;padding:4px 6px;border-radius:5px}
 .drawp:hover{background:#f0f3f8}
 .drawp.sel{background:#ffe9a8}
@@ -131,6 +133,13 @@ body.display .pill{background:#26324a;color:#c3cde0}
 @media print{
   body.print-slips main,body.print-slips #modal{display:none!important}
   body.print-slips #slips{display:block;columns:2;column-gap:10px}
+  body.print-slips #slips.per-poule{columns:auto}
+  .slip-page{break-after:page;color:#000}
+  .slip-page:last-child{break-after:auto}
+  .slip-page h2{margin:0 0 4px;font-size:20px}
+  .slip-who{display:flex;flex-wrap:wrap;gap:4px 18px;margin-bottom:8px;font-size:14px}
+  .slip-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+  .slip-grid .slip{margin:0}
   header,nav,.noprint,button{display:none!important}
   body{background:#fff}
   .card{break-inside:avoid;border-color:#999}
@@ -349,10 +358,12 @@ const TT = (() => {
     const p = s.poules.find(x => x.id === pouleId);
     const ms = s.matches.filter(m => m.kind === 'poule' && m.poule === pouleId);
     const byId = Object.fromEntries(s.players.map(x => [x.id, x]));
-    const tb = (a, b) => rankValue(byId[a]?.rank) - rankValue(byId[b]?.rank) || String(byId[a]?.name).localeCompare(byId[b]?.name);
+    // Bij volledige gelijkstand (en vóór de eerste wedstrijd) geldt het nummer in de poule: de
+    // volgorde van de loting, dus dezelfde nummers 1-4 als in de wedstrijden "1-4, 2-3, …".
+    const tb = (a, b) => p.players.indexOf(a) - p.players.indexOf(b);
     const order = orderTied(p.players, ms, tb, true);
     const st = statsFor(p.players, ms);
-    return { complete: ms.length > 0 && ms.every(isDone), rows: order.map((id, i) => Object.assign({ pos: i + 1 }, st[id])) };
+    return { complete: ms.length > 0 && ms.every(isDone), rows: order.map((id, i) => Object.assign({ pos: i + 1, nr: p.players.indexOf(id) + 1 }, st[id])) };
   }
   const allPoulesDone = s => s.matches.some(m => m.kind === 'poule') && s.matches.filter(m => m.kind === 'poule').every(isDone);
 
@@ -1046,14 +1057,21 @@ function viewPlayers() {
 }
 
 /* ---------- Poules ---------- */
+// Nummer van een speler in zijn poule (1-4, vast vanaf de loting) en "1-4" voor een poulewedstrijd.
+const pouleNr = (pouleId, pid) => (state.poules.find(p => p.id === pouleId)?.players.indexOf(pid) ?? -1) + 1;
+const matchNrs = m => m.kind === 'poule' ? `${pouleNr(m.poule, m.p1)}-${pouleNr(m.poule, m.p2)}` : '';
+// Pouleblad: de spelers blijven op hun vaste nummer staan (zoals op papier), de kolom Plaats
+// toont de rangschikking. Op het tv-scherm (compact) staat de tabel wel in volgorde van de stand.
 function standingTable(pid, compact) {
   const st = TT.pouleStandings(state, pid), q = state.settings.qualifiers;
-  let h = `<table><tr><th>#</th><th>Speler</th><th class="num">Gesp</th><th class="num">W</th><th class="num">V</th>${compact ? '' : '<th class="num">Ptn</th>'}<th class="num">Sets</th>${compact ? '' : '<th class="num">Punten</th>'}</tr>`;
-  st.rows.forEach(r => {
+  const rows = compact ? st.rows : st.rows.slice().sort((a, b) => a.nr - b.nr);
+  const started = st.rows.some(r => r.played);
+  let h = `<table class="${compact ? '' : 'pb'}"><tr><th>${compact ? '#' : 'Nr'}</th><th>Speler</th><th class="num" title="Gespeeld">${compact ? 'Gesp' : 'G'}</th><th class="num">W</th><th class="num">V</th>${compact ? '' : '<th class="num">Ptn</th>'}<th class="num">Sets</th>${compact ? '' : '<th class="num">Punten</th><th class="num" title="Plaats in de poule">Pl.</th>'}</tr>`;
+  rows.forEach(r => {
     const wd = state.players.find(p => p.id === r.id)?.withdrawn;
-    h += `<tr class="${r.pos <= q ? 'q' : ''}"><td>${r.pos}</td><td>${esc(pname(r.id))} <span class="muted small">${esc(prank(r.id))}</span>${wd ? ' <span class="pill">afgemeld</span>' : ''}</td>
+    h += `<tr class="${started && r.pos <= q ? 'q' : ''}"><td>${compact ? r.pos : `<b>${r.nr}</b>`}</td><td>${esc(pname(r.id))} <span class="muted small">${esc(prank(r.id))}</span>${wd ? ' <span class="pill">afgemeld</span>' : ''}</td>
       <td class="num">${r.played}</td><td class="num">${r.won}</td><td class="num">${r.lost}</td>${compact ? '' : `<td class="num">${r.mp}</td>`}
-      <td class="num">${r.sw}-${r.sl}</td>${compact ? '' : `<td class="num">${r.pw}-${r.pl}</td>`}</tr>`;
+      <td class="num">${r.sw}-${r.sl}</td>${compact ? '' : `<td class="num">${r.pw}-${r.pl}</td><td class="num"><b>${started ? r.pos : ''}</b></td>`}</tr>`;
   });
   return h + '</table>';
 }
@@ -1063,7 +1081,7 @@ function matchLine(m, opts = {}) {
   const sc = done ? `${m.score[0]}-${m.score[1]}` : (m.table ? `<span class="pill play">tafel ${m.table}</span>` : '');
   const detail = done ? (m.wo ? `forfait` : m.sets.map(x => x.join('-')).join(', ')) : '';
   return `<div class="match ${done ? 'done' : ''}">
-    <div class="names"><span class="${done && m.winner === m.p1 ? 'w' : ''}">${n1}</span> – <span class="${done && m.winner === m.p2 ? 'w' : ''}">${n2}</span>
+    <div class="names">${opts.nrs ? `<b class="mnr">${matchNrs(m)}</b> ` : ''}<span class="${done && m.winner === m.p1 ? 'w' : ''}">${n1}</span> – <span class="${done && m.winner === m.p2 ? 'w' : ''}">${n2}</span>
       ${detail ? `<div class="muted small">${esc(detail)}</div>` : ''}${opts.label ? `<div class="muted small">${opts.label}</div>` : ''}</div>
     <div class="score">${sc}</div>
     ${opts.noBtn ? '' : `<button class="sm noprint" data-action="score" data-id="${m.id}">${done ? 'Wijzig' : 'Uitslag'}</button>`}</div>`;
@@ -1071,9 +1089,10 @@ function matchLine(m, opts = {}) {
 function viewPoules() {
   const s = state;
   if (s.stage === 'draw') {
-    let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="back-setup">← Terug naar spelers</button><button data-action="redraw-snake">Slangsysteem (standaard)</button><button data-action="redraw">Loten binnen de potten</button><button class="primary" data-action="start-poules">Poules starten →</button></div><div class="grid">`;
+    let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="back-setup">← Terug naar spelers</button><button data-action="redraw-snake">Slangsysteem (standaard)</button><button data-action="redraw">Loten binnen de potten</button><button class="primary" data-action="start-poules">Poules starten →</button></div>
+      <p class="hint noprint">De nummers 1-4 bepalen de wedstrijden (1-4, 2-3, 1-3, 2-4, 1-2, 3-4). Klik op twee spelers om ze van plaats te wisselen, ook binnen dezelfde poule.</p><div class="grid">`;
     s.poules.forEach(p => {
-      h += `<div class="card"><h3>Poule ${p.id}</h3>${p.players.map(id => `<div class="drawp ${drawSel === id ? 'sel' : ''}" data-action="draw-swap" data-id="${id}">${esc(pname(id))} <span class="muted small">${esc(prank(id))}</span></div>`).join('')}</div>`;
+      h += `<div class="card"><h3>Poule ${p.id}</h3>${p.players.map((id, i) => `<div class="drawp ${drawSel === id ? 'sel' : ''}" data-action="draw-swap" data-id="${id}"><b class="mnr" style="min-width:18px">${i + 1}</b>${esc(pname(id))} <span class="muted small">${esc(prank(id))}</span></div>`).join('')}</div>`;
     });
     return h + '</div>';
   }
@@ -1082,7 +1101,7 @@ function viewPoules() {
   s.poules.forEach(p => {
     const ms = s.matches.filter(m => m.kind === 'poule' && m.poule === p.id);
     const done = ms.filter(TT.isDone).length;
-    h += `<div class="card"><h3>Poule ${p.id} <span class="pill ${done === ms.length ? 'ok' : ''}">${done}/${ms.length}</span></h3>${standingTable(p.id)}<div style="margin-top:8px">${ms.map(m => matchLine(m)).join('')}</div></div>`;
+    h += `<div class="card"><h3>Poule ${p.id} <span class="pill ${done === ms.length ? 'ok' : ''}">${done}/${ms.length}</span></h3>${standingTable(p.id)}<div style="margin-top:8px">${ms.map(m => matchLine(m, { nrs: true })).join('')}</div></div>`;
   });
   return h + '</div>';
 }
@@ -1108,15 +1127,28 @@ function extraInfo(m) {
 function slipsHtml(ms) {
   return ms.map(m => {
     const tg = TT.targets(state, m), bo = m.bo || state.settings.bestOf;
-    return `<div class="slip"><div class="row" style="justify-content:space-between"><b>${mLabel(m)}</b><span>Tafel: ${m.table || '____'}</span></div>
+    return `<div class="slip"><div class="row" style="justify-content:space-between"><b>${mLabel(m)}${m.kind === 'poule' ? ` · wedstrijd ${matchNrs(m)}` : ''}</b><span>Tafel: ${m.table || '____'}</span></div>
       <table><tr><th></th>${Array.from({ length: bo }, (_, i) => `<th>Set ${i + 1}</th>`).join('')}<th>Sets</th></tr>
       ${[m.p1, m.p2].map((p, i) => `<tr><td class="sn">${esc(pname(p))} <span class="small">${esc(prank(p))}</span>${tg.mode === 'target' ? ` <b>tot ${tg.t[i]}</b>` : tg.lead[i] ? ` <b>start met ${tg.lead[i]}</b>` : ''}</td>${'<td class="box"></td>'.repeat(bo + 1)}</tr>`).join('')}</table>
       <div class="small">${(bo + 1) / 2} winnende sets${tg.mode === 'target' ? '' : ' tot 11'}${m.ump ? ` · Telt: ${esc(pname(m.ump))}` : ''} · Winnaar brengt dit briefje terug</div></div>`;
   }).join('');
 }
-function printSlips(ms) {
+// Briefjes van de poules: één blad per poule, in de volgorde van het pouleblad, met bovenaan de
+// spelers en hun nummer.
+function pouleSlipsHtml(ms) {
+  return state.poules.map(p => {
+    const mine = ms.filter(m => m.poule === p.id);
+    if (!mine.length) return '';
+    return `<section class="slip-page"><h2>Poule ${p.id}</h2>
+      <div class="slip-who">${p.players.map((id, i) => `<span><b>${i + 1}</b> ${esc(pname(id))} <span class="small">${esc(prank(id))}</span></span>`).join('')}</div>
+      <div class="slip-grid">${slipsHtml(mine)}</div></section>`;
+  }).join('');
+}
+function printSlips(ms, perPoule) {
   if (!ms.length) { toast('Geen wedstrijden om af te drukken.', true); return; }
-  document.getElementById('slips').innerHTML = slipsHtml(ms);
+  const box = document.getElementById('slips');
+  box.innerHTML = perPoule ? pouleSlipsHtml(ms) : slipsHtml(ms);
+  box.classList.toggle('per-poule', !!perPoule);
   document.body.classList.add('print-slips');
   const done = () => { document.body.classList.remove('print-slips'); window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);
@@ -1381,7 +1413,7 @@ document.addEventListener('click', e => {
       if (drawSel === id) { drawSel = null; render(); break; }
       { const a1 = drawSel; drawSel = null;
         mutate(s => { const pa = s.poules.find(p => p.players.includes(a1)), pb = s.poules.find(p => p.players.includes(id));
-          pa.players[pa.players.indexOf(a1)] = id; pb.players[pb.players.indexOf(id)] = a1; }); }
+          const ia = pa.players.indexOf(a1), ib = pb.players.indexOf(id); pa.players[ia] = id; pb.players[ib] = a1; }); }
       break;
     case 'start-poules': mutate(s => TT.startPoules(s)); tab = 'wedstrijden'; render(); break;
     case 'withdraw': if (confirm(`${pname(id)} afmelden? Alle resterende poulewedstrijden worden forfait.`)) mutate(s => TT.withdraw(s, id)); break;
@@ -1395,7 +1427,7 @@ document.addEventListener('click', e => {
     case 'reset-ko': if (confirm('Eindrondes wissen? De poule-uitslagen blijven bewaard.')) { mutate(s => TT.resetKnockout(s)); tab = 'poules'; render(); } break;
     case 'print': window.print(); break;
     case 'slips-playing': printSlips(state.matches.filter(m => m.table && !TT.isDone(m)).sort((a, b) => a.table - b.table)); break;
-    case 'slips-poules': printSlips(state.matches.filter(m => m.kind === 'poule' && !TT.isDone(m))); break;
+    case 'slips-poules': printSlips(state.matches.filter(m => m.kind === 'poule' && !TT.isDone(m)), true); break;
     case 'export': exportBackup(); break;
     case 'new-tournament': {
       const has = state.players.length > 0;

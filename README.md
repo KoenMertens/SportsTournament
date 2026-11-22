@@ -19,6 +19,8 @@ Eén bestand, `index.html`, dat volledig in de browser draait. Geen server, geen
 - Poulestand: matchpunten (winst 2, verlies 1, forfait 0), bij gelijkstand het onderlinge resultaat (punten, sets, balpunten).
 - Puntenaanpassing (Instellingen): **voorgift** (standaard: de laagst geklasseerde begint elke set met 1 punt per 2 klassementen verschil voorsprong, iedereen speelt tot 11), **handicap** (oud systeem: de hoogst geklasseerde speelt verder dan 11) of **geen aanpassing**. De app toont dit per wedstrijd en op de briefjes, en controleert de setstanden daarop.
 - Volgorde in een poule van 4: 1-4, 2-3, 1-3, 2-4, 1-2, 3-4 (hoogst geplaatste eerst).
+- Elke speler heeft een vast nummer in zijn poule (de volgorde van de loting). Dat nummer staat op het pouleblad en voor elke wedstrijd ("1-4"). In de loting wissel je twee spelers door ze aan te klikken, ook binnen dezelfde poule.
+- "Wedstrijdbriefjes poules" drukt één blad per poule af, in de volgorde van het pouleblad, met de voorgift op elk briefje.
 - In de eindrondes zijn wedstrijden die al gespeeld kunnen worden groen gekleurd.
 - Clubleden kiezen: standaard de vaste ledenlijst van TTC Sterke Stut (werkt offline). Via de keuzelijst **Club** kun je de leden en klassementen van een andere club ophalen bij VTTL (TabT-API, zonder login; heeft internet nodig).
 - De clubfoto zit in de repo (`clubfoto.jpg`); het logo (`logo.png`) en de twee achtergrondfoto's (`achtergrond-links.jpg`, `achtergrond-rechts.jpg`) ook.

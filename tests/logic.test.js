@@ -59,6 +59,20 @@ function playAll(s, check) {
   assert.strictEqual(ord('B'), '2-3 1-3 1-2');
   assert(s.matches.every(m => m.p1 < m.p2));
 }
+// --- pouleblad: vast nummer per speler (volgorde van de loting), ook bij gelijk klassement
+{
+  const s = TT.newState();
+  s.players = [['a', 'Pauwels', 'C2'], ['b', 'Props', 'E4'], ['c', 'De Moerloose', 'E4'], ['d', 'De Vos', 'NG']].map(([id, name, rank]) => ({ id, name, rank }));
+  s.poules = [{ id: 'A', players: ['a', 'c', 'b', 'd'] }];           // De Moerloose is nr 2, Props nr 3
+  TT.startPoules(s);
+  assert.deepStrictEqual(s.matches.map(m => m.p1 + m.p2), ['ad', 'cb', 'ab', 'cd', 'ac', 'bd']);
+  const rows = TT.pouleStandings(s, 'A').rows;
+  assert.deepStrictEqual(rows.map(r => r.id + r.nr), ['a1', 'c2', 'b3', 'd4'], 'voor de start: volgorde van het pouleblad');
+  TT.setResult(s, s.matches[1].id, { sets: [[5, 11], [5, 11]] });      // nr 3 wint van nr 2
+  const r2 = TT.pouleStandings(s, 'A').rows;
+  assert.strictEqual(r2[0].id, 'b');
+  assert.strictEqual(r2.find(r => r.id === 'b').nr, 3, 'nummer blijft vast');
+}
 // --- kleine eenheden
 assert.deepStrictEqual(TT.parseSet('11-7'), [11, 7]);
 assert.deepStrictEqual(TT.parseSet('7'), [11, 7]);
