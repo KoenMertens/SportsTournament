@@ -267,8 +267,8 @@ for (let n = 3; n <= 40; n++) for (let rep = 0; rep < 15; rep++) for (const cons
     s.matches = []; s.poules = [];
   }
   // oude back-ups: zonder uitslagen -> voorgift, met uitslagen blijft het oude systeem
-  assert.deepStrictEqual(TT.migrate({ settings: { handicap: 'half' }, matches: [] }).settings, { handicap: 'lead', hcRound: 'down' });
-  assert.deepStrictEqual(TT.migrate({ settings: { handicap: 'up' }, matches: [{ winner: 'x' }] }).settings, { handicap: 'target', hcRound: 'up' });
+  assert.deepStrictEqual(TT.migrate({ settings: { handicap: 'half' }, matches: [] }).settings, { handicap: 'lead', hcRound: 'down', drawTie: 'az' });
+  assert.deepStrictEqual(TT.migrate({ settings: { handicap: 'up' }, matches: [{ winner: 'x' }] }).settings, { handicap: 'target', hcRound: 'up', drawTie: 'az' });
   assert.strictEqual(TT.migrate({ settings: { handicap: 'none' } }).settings.handicap, 'none');
   s.settings.handicap = 'none';
   assert.deepStrictEqual(tg('a', 'd').t, [11, 11]);            // uit
@@ -344,5 +344,29 @@ for (const n of [8, 13, 17, 22, 29, 30]) {
   // dezelfde uitslag opnieuw ingeven verandert niets en mag wel
   TT.setResult(a2, victim.id, { sets: res[victim.id] });
   assert.strictEqual(first(a2), first(b));
+}
+
+// Loting bij gelijk klassement: alfabetisch, omgekeerd, willekeurig of lijstvolgorde
+{
+  const pl = [['p1', 'Zeger', 'C0'], ['p2', 'Bart', 'D0'], ['p3', 'Anna', 'C0'], ['p4', 'Mia', 'D0'], ['p5', 'Carl', 'B0'], ['p6', 'élise', 'D0']]
+    .map(([id, name, rank]) => ({ id, name, rank }));
+  const flat = tie => { const ps = TT.drawPoules(pl, 3, false, Math.random, tie); return ps[0].players.map((a, i) => [a, ps[1].players[i]]); };
+  const seq = tie => { const ps = TT.drawPoules(pl, 6, false, Math.random, tie); return ps[0].players.join(' '); };
+  assert.strictEqual(seq('list'), 'p5 p1 p3 p2 p4 p6');
+  assert.strictEqual(seq(undefined), 'p5 p1 p3 p2 p4 p6');
+  assert.strictEqual(seq('az'), 'p5 p3 p1 p2 p6 p4');
+  assert.strictEqual(seq('za'), 'p5 p1 p3 p4 p6 p2');
+  const seen = new Set();
+  for (let i = 0; i < 60; i++) {
+    const r = seq('random').split(' ');
+    assert.strictEqual(r[0], 'p5');
+    assert.deepStrictEqual(r.slice(1, 3).sort(), ['p1', 'p3']);
+    assert.deepStrictEqual(r.slice(3).sort(), ['p2', 'p4', 'p6']);
+    seen.add(r.join(' '));
+  }
+  assert.ok(seen.size > 3, 'willekeurig geeft verschillende volgordes');
+  assert.strictEqual(TT.newState().settings.drawTie, 'az');
+  assert.strictEqual(TT.migrate({ settings: { handicap: 'lead' }, matches: [] }).settings.drawTie, 'az');
+  assert.strictEqual(flat('az').length, 3);
 }
 console.log('Alle logicatests geslaagd.');
