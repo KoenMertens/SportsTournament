@@ -1030,7 +1030,7 @@ function viewPlayers() {
   let h = setup && photoOk ? `<div class="hero noprint"><img class="photo" src="${photoLocal ? 'clubfoto.jpg' : CLUB_PHOTO}" alt="TTC Sterke Stut" onerror="if(photoLocal){photoLocal=false;this.src=CLUB_PHOTO}else{photoOk=false;this.parentNode.remove()}">${logoOk ? `<img class="logo" src="${CLUB_LOGO}" alt="" onerror="logoOk=false;this.remove()">` : ''}<div>${esc(s.name || 'Clubkampioenschap')} <a href="https://www.sterkestut.be/" target="_blank" rel="noopener">TTC Sterke Stut · sterkestut.be</a></div></div>` : '';
   if (s.stage === 'poules') {
     const min = Math.min(...s.poules.map(p => p.players.length)), def = s.poules.find(p => p.players.length === min).id;
-    h += `<div class="card" id="laatkomer" style="border-color:var(--accent)"><h2>＋ Laatkomer toevoegen</h2><form data-form="late" class="row"><input name="name" placeholder="Naam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')}
+    h += `<div class="card" id="laatkomer" style="border-color:var(--accent)"><h2>＋ Laatkomer toevoegen</h2><form data-form="late" class="row"><input name="name" placeholder="Voornaam Familienaam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')}
       <select name="poule">${s.poules.map(p => `<option value="${p.id}" ${p.id === def ? 'selected' : ''}>Poule ${p.id} (${p.players.length} spelers)</option>`).join('')}</select>
       <button class="primary">Toevoegen</button></form><p class="hint">De speler komt in de gekozen poule en krijgt wedstrijden tegen iedereen uit die poule. Kies best een poule van 3. Dit kan tot je de eindrondes aanmaakt.</p></div>`;
   } else if (s.stage === 'draw') {
@@ -1051,9 +1051,10 @@ function viewPlayers() {
     </div></div>`;
     h += clubPicker();
     h += `<div class="card"><h2>Spelers toevoegen</h2>
-      <form data-form="add-player" class="row"><input name="name" placeholder="Naam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
+      <form data-form="add-player" class="row"><input name="name" placeholder="Voornaam Familienaam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
+      <p class="hint">Tik de naam als <b>Voornaam Familienaam</b> (bv. Wim De Moerloose), zoals in de ledenlijst. Zo klopt het alfabetisch sorteren op familienaam bij de loting.</p>
       <details style="margin-top:10px"><summary>Meerdere spelers tegelijk plakken</summary>
-        <p class="hint">Eén speler per lijn. Klassement mag erachter, gescheiden door ; of tab of komma. Bv. <code>Jan Peeters; C4</code></p>
+        <p class="hint">Eén speler per lijn, als Voornaam Familienaam. Klassement mag erachter, gescheiden door ; of tab of komma. Bv. <code>Jan Peeters; C4</code></p>
         <form data-form="bulk"><textarea name="bulk" placeholder="Jan Peeters; C4&#10;An Janssens; D2&#10;Piet"></textarea><div class="row" style="margin-top:6px"><button class="primary">Toevoegen</button></div></form>
       </details></div>`;
   }
