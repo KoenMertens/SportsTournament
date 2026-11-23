@@ -208,10 +208,23 @@ const TT = (() => {
   // Bij gelijk klassement (tie): 'az' alfabetisch, 'za' omgekeerd alfabetisch, 'random' willekeurig,
   // 'list' de volgorde van de inschrijvingslijst.
   const DRAW_TIES = ['az', 'za', 'random', 'list'];
+  // Sorteersleutel "familienaam voornaam". Namen staan als "Voornaam Familienaam" (Wim De Moerloose):
+  // het eerste woord is de voornaam. Uitzonderingen: "De Vos, Wim" (komma) en "DE VOS Wim"
+  // (familienaam in hoofdletters vooraan, gevolgd door een gewone voornaam).
+  function sortName(name) {
+    const n = String(name || '').trim().replace(/\s+/g, ' ');
+    if (n.includes(',')) { const [l, ...f] = n.split(','); return (l.trim() + ' ' + f.join(' ').trim()).trim(); }
+    const w = n.split(' ');
+    if (w.length < 2) return n;
+    const caps = x => /\p{L}/u.test(x) && x === x.toUpperCase() && x.replace(/[^\p{L}]/gu, '').length > 1;
+    let k = 0; while (k < w.length && caps(w[k])) k++;
+    if (k > 0 && k < w.length) return n;
+    return w.slice(1).join(' ') + ' ' + w[0];
+  }
   function drawPoules(players, size, random = false, rnd = Math.random, tie = 'list') {
     const k = pouleSizes(players.length, size).length;
     const base = tie === 'random' ? shuffle(players, rnd) : players;
-    const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'nl', { sensitivity: 'base' });
+    const byName = (a, b) => sortName(a.name).localeCompare(sortName(b.name), 'nl', { sensitivity: 'base' });
     const sorted = base.map((p, i) => [p, i]).sort((a, b) => rankValue(a[0].rank) - rankValue(b[0].rank)
       || (tie === 'az' ? byName(a[0], b[0]) : tie === 'za' ? byName(b[0], a[0]) : 0) || a[1] - b[1]).map(x => x[0]);
     const poules = Array.from({ length: k }, (_, i) => ({ id: pouleName(i), players: [] }));
@@ -736,7 +749,7 @@ const TT = (() => {
     return { first: get(1), second: get(2), third: get(3) ? [get(3)] : [] };
   }
 
-  return { RANKS, DRAW_TIES, rankValue, newState, pouleSizes, drawPoules, roundRobin, startPoules, parseSet, validSet, checkSets,
+  return { RANKS, DRAW_TIES, sortName, rankValue, newState, pouleSizes, drawPoules, roundRobin, startPoules, parseSet, validSet, checkSets,
     checkScore, pouleStandings, allPoulesDone, seedOrder, meetRound, buildBracket, clubBracket, CLUB_TABLES, koEntries, startKnockout, resetKnockout,
     setResult, clearResult, canEdit, withdraw, addLatePlayer, readyMatches, freeTables, assign, autoAssign, busyPlayers,
     targets, migrate, pickUmpire, isToken, rederive, pouleComplete, maxDepth, groupLabel, placements, finalRanking, podium, isDone, isPlayable, nextId, pouleName };
