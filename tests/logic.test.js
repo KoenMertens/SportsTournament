@@ -369,4 +369,18 @@ for (const n of [8, 13, 17, 22, 29, 30]) {
   assert.strictEqual(TT.migrate({ settings: { handicap: 'lead' }, matches: [] }).settings.drawTie, 'az');
   assert.strictEqual(flat('az').length, 3);
 }
+
+// Alfabetisch bij gelijk klassement = op familienaam, ook voor zelf ingetikte namen
+{
+  assert.strictEqual(TT.sortName('Wim De Moerloose'), 'De Moerloose Wim');
+  assert.strictEqual(TT.sortName('  carl   pauwels '), 'pauwels carl');
+  assert.strictEqual(TT.sortName('De Vos, Wim'), 'De Vos Wim');
+  assert.strictEqual(TT.sortName('DE VOS Wim'), 'DE VOS Wim');
+  assert.strictEqual(TT.sortName('PAUWELS CARL'), 'CARL PAUWELS');
+  assert.strictEqual(TT.sortName('Madonna'), 'Madonna');
+  const pl = ['Wim De Vos', 'Carl Pauwels', 'Filip Props', 'Wim De Moerloose', 'anna de vos', 'Zoë Aerts'].map((name, i) => ({ id: 'p' + (i + 1), name, rank: 'D0' }));
+  const seq = tie => TT.drawPoules(pl, 6, false, Math.random, tie)[0].players.join(' ');
+  assert.strictEqual(seq('az'), 'p6 p4 p5 p1 p2 p3');   // Aerts, De Moerloose, de vos anna, De Vos Wim, Pauwels, Props
+  assert.strictEqual(seq('za'), 'p3 p2 p1 p5 p4 p6');
+}
 console.log('Alle logicatests geslaagd.');
