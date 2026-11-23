@@ -208,18 +208,10 @@ const TT = (() => {
   // Bij gelijk klassement (tie): 'az' alfabetisch, 'za' omgekeerd alfabetisch, 'random' willekeurig,
   // 'list' de volgorde van de inschrijvingslijst.
   const DRAW_TIES = ['az', 'za', 'random', 'list'];
-  // Sorteersleutel "familienaam voornaam". Namen staan als "Voornaam Familienaam" (Wim De Moerloose):
-  // het eerste woord is de voornaam. Uitzonderingen: "De Vos, Wim" (komma) en "DE VOS Wim"
-  // (familienaam in hoofdletters vooraan, gevolgd door een gewone voornaam).
+  // Sorteersleutel. Namen staan als "Familienaam Voornaam" (De Moerloose Wim), dus de naam zelf
+  // sorteert al op familienaam; een komma ("De Vos, Wim") en dubbele spaties tellen niet mee.
   function sortName(name) {
-    const n = String(name || '').trim().replace(/\s+/g, ' ');
-    if (n.includes(',')) { const [l, ...f] = n.split(','); return (l.trim() + ' ' + f.join(' ').trim()).trim(); }
-    const w = n.split(' ');
-    if (w.length < 2) return n;
-    const caps = x => /\p{L}/u.test(x) && x === x.toUpperCase() && x.replace(/[^\p{L}]/gu, '').length > 1;
-    let k = 0; while (k < w.length && caps(w[k])) k++;
-    if (k > 0 && k < w.length) return n;
-    return w.slice(1).join(' ') + ' ' + w[0];
+    return String(name || '').replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
   }
   function drawPoules(players, size, random = false, rnd = Math.random, tie = 'list') {
     const k = pouleSizes(players.length, size).length;
@@ -827,71 +819,71 @@ function render() {
 /* ---------- Spelers ---------- */
 // Ledenlijst van de club (bron: sterkestut.be/leden, 18/11/2026), één lid per lijn als "Naam;Klassement".
 const CLUB_MEMBERS = `
-Geert De Moor;D0
-Carl Pauwels;C2
-Jeroen De Smet;C2
-Pieter Pien;C6
-Tim Claessens;C6
-Bram De Smet;D0
-Sebastien De Cuyper;C6
-Filiep Van Grembergen;D2
-Sören De Clercq;C6
-Kristof De Cuyper;D2
-Ward De Leeuw;D2
-Koen Mertens;D6
-Jelle De Sutter;D4
-Kris Verbert;D2
-Evert Docker;D4
-Artur Pauwels;E0
-Raphael Van Bever;E6
-Benny Steyaert;D4
-Willy Vandekerckhove;E6
-Ben Braeckman;E0
-Wim De Moerloose;E4
-Henk Van Herrewege;E2
-Patrick De Sutter;E6
-Bjorn Wollaert;E4
-Thomas Lavens;E6
-Hans Pien;E6
-Filip Props;E4
-Samuel Auquier;E2
-Willy De Sutter;E6
-Pepijn Hutse;E4
-Alex Bondroit;E6
-Hans Braeckman;E6
-Eddy Van Bever;E6
-Brent De Clercq;E6
-Yarne Van Herrewege;E6
-Jurgen De Cuyper;E6
-Oussama Issa;E6
-Tom Oosterlinck;NG
-Fred Spiessens;E6
-Martin Schreyen;E6
-Helena Guns;NG
-Mathijs De Sutter;NG
-Senne De Moerloose;NG
-Luc Symoens;E6
-Ken Waerie;NG
-Linde Eeckhaut;NG
-Karolina Pauwels;NG
-Stan Dequinnemaere;NG
-Wim De Vos;NG
-Toon Delporte;NG
-Niels Lewyllie Claes;NG
-Arthur Everaert;NG
-Els Vandierendonck;NG
-Paulien Guns;NG
-Wilfried Verdonck;E6
-Wannes Balcaen;NG
-Astor Beschuyt;NG
-Arina Chumak;NG
-Pauline De Coene;NG
-Marlon De Wolf;NG
-Leonie Deconinck;NG
-Olivier Dequinnemaere;NG
-Kacper Pauwels;NG
-Bart Van Steendam;NG
-Grim Vanhouwe;NG
+De Moor Geert;D0
+Pauwels Carl;C2
+De Smet Jeroen;C2
+Pien Pieter;C6
+Claessens Tim;C6
+De Smet Bram;D0
+De Cuyper Sebastien;C6
+Van Grembergen Filiep;D2
+De Clercq Sören;C6
+De Cuyper Kristof;D2
+De Leeuw Ward;D2
+Mertens Koen;D6
+De Sutter Jelle;D4
+Verbert Kris;D2
+Docker Evert;D4
+Pauwels Artur;E0
+Van Bever Raphael;E6
+Steyaert Benny;D4
+Vandekerckhove Willy;E6
+Braeckman Ben;E0
+De Moerloose Wim;E4
+Van Herrewege Henk;E2
+De Sutter Patrick;E6
+Wollaert Bjorn;E4
+Lavens Thomas;E6
+Pien Hans;E6
+Props Filip;E4
+Auquier Samuel;E2
+De Sutter Willy;E6
+Hutse Pepijn;E4
+Bondroit Alex;E6
+Braeckman Hans;E6
+Van Bever Eddy;E6
+De Clercq Brent;E6
+Van Herrewege Yarne;E6
+De Cuyper Jurgen;E6
+Issa Oussama;E6
+Oosterlinck Tom;NG
+Spiessens Fred;E6
+Schreyen Martin;E6
+Guns Helena;NG
+De Sutter Mathijs;NG
+De Moerloose Senne;NG
+Symoens Luc;E6
+Waerie Ken;NG
+Eeckhaut Linde;NG
+Pauwels Karolina;NG
+Dequinnemaere Stan;NG
+De Vos Wim;NG
+Delporte Toon;NG
+Lewyllie Claes Niels;NG
+Everaert Arthur;NG
+Vandierendonck Els;NG
+Guns Paulien;NG
+Verdonck Wilfried;E6
+Balcaen Wannes;NG
+Beschuyt Astor;NG
+Chumak Arina;NG
+De Coene Pauline;NG
+De Wolf Marlon;NG
+Deconinck Leonie;NG
+Dequinnemaere Olivier;NG
+Pauwels Kacper;NG
+Van Steendam Bart;NG
+Vanhouwe Grim;NG
 `.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [name, rank = ''] = l.split(';').map(x => x.trim()); return { name, rank: TT.RANKS.includes(rank.toUpperCase()) ? rank.toUpperCase() : '' }; })
   .sort((a, b) => TT.rankValue(a.rank) - TT.rankValue(b.rank) || a.name.localeCompare(b.name, 'nl'));
 const sortMembers = l => l.sort((a, b) => TT.rankValue(a.rank) - TT.rankValue(b.rank) || a.name.localeCompare(b.name, 'nl'));
@@ -984,7 +976,7 @@ const vttlLoadMembers = code => vttlRun('Leden ophalen bij VTTL', async () => {
   code = String(code || '').trim(); if (!code) throw new Error('kies eerst een club');
   const xml = await tabt('GetMembers', { Club: code }), rows = xmlRows(xml, 'MemberEntries').filter(m => m.LastName || m.FirstName);
   if (!rows.length) throw new Error('geen leden herkend voor club ' + code + ': ' + xmlNames(xml));
-  const members = sortMembers(rows.map(m => ({ name: cleanName(`${niceName(m.FirstName || '')} ${niceName(m.LastName || '')}`), rank: vttlRank(m.Ranking) })));
+  const members = sortMembers(rows.map(m => ({ name: cleanName(`${niceName(m.LastName || '')} ${niceName(m.FirstName || '')}`), rank: vttlRank(m.Ranking) })));
   vttl = { code, name: vttlClubs?.find(c => c.code === code)?.name || code, members, at: Date.now() };
 });
 // Keuzelijst van clubs: de eigen club staat altijd bovenaan en is de standaard; de zoekterm
@@ -1030,7 +1022,7 @@ function viewPlayers() {
   let h = setup && photoOk ? `<div class="hero noprint"><img class="photo" src="${photoLocal ? 'clubfoto.jpg' : CLUB_PHOTO}" alt="TTC Sterke Stut" onerror="if(photoLocal){photoLocal=false;this.src=CLUB_PHOTO}else{photoOk=false;this.parentNode.remove()}">${logoOk ? `<img class="logo" src="${CLUB_LOGO}" alt="" onerror="logoOk=false;this.remove()">` : ''}<div>${esc(s.name || 'Clubkampioenschap')} <a href="https://www.sterkestut.be/" target="_blank" rel="noopener">TTC Sterke Stut · sterkestut.be</a></div></div>` : '';
   if (s.stage === 'poules') {
     const min = Math.min(...s.poules.map(p => p.players.length)), def = s.poules.find(p => p.players.length === min).id;
-    h += `<div class="card" id="laatkomer" style="border-color:var(--accent)"><h2>＋ Laatkomer toevoegen</h2><form data-form="late" class="row"><input name="name" placeholder="Voornaam Familienaam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')}
+    h += `<div class="card" id="laatkomer" style="border-color:var(--accent)"><h2>＋ Laatkomer toevoegen</h2><form data-form="late" class="row"><input name="name" placeholder="Familienaam Voornaam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')}
       <select name="poule">${s.poules.map(p => `<option value="${p.id}" ${p.id === def ? 'selected' : ''}>Poule ${p.id} (${p.players.length} spelers)</option>`).join('')}</select>
       <button class="primary">Toevoegen</button></form><p class="hint">De speler komt in de gekozen poule en krijgt wedstrijden tegen iedereen uit die poule. Kies best een poule van 3. Dit kan tot je de eindrondes aanmaakt.</p></div>`;
   } else if (s.stage === 'draw') {
@@ -1051,11 +1043,11 @@ function viewPlayers() {
     </div></div>`;
     h += clubPicker();
     h += `<div class="card"><h2>Spelers toevoegen</h2>
-      <form data-form="add-player" class="row"><input name="name" placeholder="Voornaam Familienaam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
-      <p class="hint">Tik de naam als <b>Voornaam Familienaam</b> (bv. Wim De Moerloose), zoals in de ledenlijst. Zo klopt het alfabetisch sorteren op familienaam bij de loting.</p>
+      <form data-form="add-player" class="row"><input name="name" placeholder="Familienaam Voornaam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
+      <p class="hint">Tik de naam als <b>Familienaam Voornaam</b> (bv. De Moerloose Wim), zoals in de ledenlijst. Zo klopt het alfabetisch sorteren op familienaam bij de loting.</p>
       <details style="margin-top:10px"><summary>Meerdere spelers tegelijk plakken</summary>
-        <p class="hint">Eén speler per lijn, als Voornaam Familienaam. Klassement mag erachter, gescheiden door ; of tab of komma. Bv. <code>Jan Peeters; C4</code></p>
-        <form data-form="bulk"><textarea name="bulk" placeholder="Jan Peeters; C4&#10;An Janssens; D2&#10;Piet"></textarea><div class="row" style="margin-top:6px"><button class="primary">Toevoegen</button></div></form>
+        <p class="hint">Eén speler per lijn, als Familienaam Voornaam. Klassement mag erachter, gescheiden door ; of tab of komma. Bv. <code>Peeters Jan; C4</code></p>
+        <form data-form="bulk"><textarea name="bulk" placeholder="Peeters Jan; C4&#10;Janssens An; D2&#10;Piet"></textarea><div class="row" style="margin-top:6px"><button class="primary">Toevoegen</button></div></form>
       </details></div>`;
   }
   const sizes = TT.pouleSizes(active, s.settings.pouleSize);
