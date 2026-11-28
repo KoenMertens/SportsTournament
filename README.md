@@ -53,4 +53,4 @@ Speelt honderden volledige tornooien na (3 tot 40 spelers) en controleert poules
 
 ## Maker
 
-Gemaakt door [MKict](https://mkict.be). De vermelding staat onderaan elke pagina en op de afdrukken. Het logo staat in de repo (`mkict-logo.png`, en `mkict-logo-wit.png` voor het donkere tv-scherm).
+Gemaakt door [MKict](https://mkict.be). De vermelding staat onderaan elke pagina en op de afdrukken. Daarnaast staat een link naar de trainer van de club, [capatt.be](https://www.capatt.be/) ("Les nodig?"), alleen op het scherm. Het logo staat in de repo (`mkict-logo.png`, en `mkict-logo-wit.png` voor het donkere tv-scherm).
