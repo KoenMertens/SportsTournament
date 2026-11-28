@@ -24,7 +24,8 @@ nav button:hover{color:#fff}
 .credit{max-width:1400px;margin:0 auto;padding:4px 16px 18px;text-align:center;font-size:13px;color:var(--muted)}
 .credit a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .credit a:hover{color:var(--ink)}
-.credit img{height:22px;width:auto;display:block}
+.credit img{height:30px;width:auto;display:block}
+@media print{.credit img{height:24px}}
 .credit .url,.slip-credit{display:none}
 body.display .credit{color:#90a0bd}
 main{padding:16px;max-width:1400px;margin:0 auto}
@@ -151,6 +152,7 @@ body.display .pill{background:#26324a;color:#c3cde0}
   header,nav,.noprint,button{display:none!important}
   .credit{padding:8px 0 0;color:#000;font-size:11px}.credit .url{display:inline}
   .slip-credit{display:block;text-align:center;font-size:11px;color:#000;margin-top:6px}
+  .slip-credit img{height:16px;vertical-align:middle;margin-right:5px}
   body{background:#fff}
   .card{break-inside:avoid;border-color:#999}
   main{padding:0}
@@ -1073,10 +1075,10 @@ function applyLang() {
   const sel = document.getElementById('hdrLang'); if (sel) sel.value = LANG;
 }
 const langSelect = () => `<label>${L('Taal')} <select data-lang>${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
-// Maker van de app: MKict (https://mkict.be). Het logo (mkict-logo.png naast de pagina) verdwijnt als het niet laadt.
+// Maker van de app: MKict (https://mkict.be). Logo mkict-logo.png (op het donkere tv-scherm mkict-logo-wit.png); verdwijnt als het niet laadt.
 const MAKER_URL = 'https://mkict.be';
-const footerHtml = () => `<footer class="credit"><a href="${MAKER_URL}" target="_blank" rel="noopener"><img src="mkict-logo.png" alt="MKict" onerror="this.remove()"><span>${L('Gemaakt door {0}', '<b>MKict</b>')}<span class="url"> · mkict.be</span></span></a></footer>`;
-const printFooter = () => `<div class="slip-credit">${L('Gemaakt door {0}', 'MKict')} · mkict.be</div>`;
+const footerHtml = () => `<footer class="credit"><a href="${MAKER_URL}" target="_blank" rel="noopener"><img src="${isDisplay() ? 'mkict-logo-wit.png' : 'mkict-logo.png'}" alt="MKict" onerror="this.remove()"><span>${L('Gemaakt door {0}', '<b>MKict</b>')}<span class="url"> · mkict.be</span></span></a></footer>`;
+const printFooter = () => `<div class="slip-credit"><img src="mkict-logo.png" alt="" onerror="this.remove()">${L('Gemaakt door {0}', 'MKict')} · mkict.be</div>`;
 let tab = 'spelers', drawSel = null;
 const isDisplay = () => location.hash === '#scherm';
 

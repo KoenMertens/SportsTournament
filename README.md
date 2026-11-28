@@ -53,4 +53,4 @@ Speelt honderden volledige tornooien na (3 tot 40 spelers) en controleert poules
 
 ## Maker
 
-Gemaakt door [MKict](https://mkict.be). De vermelding staat onderaan elke pagina en op de afdrukken. Zet het logo als `mkict-logo.png` naast `index.html`; zonder dat bestand verschijnt alleen de tekst.
+Gemaakt door [MKict](https://mkict.be). De vermelding staat onderaan elke pagina en op de afdrukken. Het logo staat in de repo (`mkict-logo.png`, en `mkict-logo-wit.png` voor het donkere tv-scherm).
