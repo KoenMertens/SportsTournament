@@ -381,4 +381,17 @@ for (const n of [8, 13, 17, 22, 29, 30]) {
   assert.strictEqual(seq('az'), 'p6 p4 p5 p1 p2 p3');   // Aerts, De Moerloose, de vos anna, De Vos Wim, Pauwels, Props
   assert.strictEqual(seq('za'), 'p3 p2 p1 p5 p4 p6');
 }
+// --- talen: elke Nederlandse zin in L('…') of data-i18n heeft een Franse en Engelse vertaling met dezelfde {0}, {1}, …
+{
+  const tbl = window.I18N_TABLE, keys = new Set();
+  for (const m of html.matchAll(/\bL\('((?:[^'\\]|\\.)*)'/g)) if (m[1] !== '…') keys.add(m[1].replace(/\\'/g, "'"));
+  for (const m of html.matchAll(/data-i18n(?:-title)?="([^"]*)"/g)) keys.add(m[1]);
+  assert(keys.size > 150, 'te weinig vertaalbare zinnen gevonden');
+  const ph = t => (t.match(/\{\d\}/g) || []).sort().join('');
+  keys.forEach(k => {
+    assert(tbl[k], `geen vertaling voor: ${k}`);
+    tbl[k].forEach(t => assert.strictEqual(ph(t), ph(k), `andere plaatshouders in vertaling van: ${k}`));
+  });
+  Object.keys(tbl).forEach(k => assert(keys.has(k), `vertaling wordt niet gebruikt: ${k}`));
+}
 console.log('Alle logicatests geslaagd.');

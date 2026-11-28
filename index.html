@@ -19,6 +19,15 @@ nav button{background:transparent;color:#c9d1e0;border:0;padding:7px 12px;border
 nav button.active{background:#2d3a52;color:#fff}
 nav button:hover{color:#fff}
 .hdr-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.hdr-right select{padding:3px 6px;font-size:13px}
+/* vermelding van de maker (MKict), ook op afdrukken */
+.credit{max-width:1400px;margin:0 auto;padding:4px 16px 18px;text-align:center;font-size:13px;color:var(--muted)}
+.credit a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.credit a:hover{color:var(--ink)}
+.credit img{height:30px;width:auto;display:block}
+@media print{.credit img{height:24px}}
+.credit .url,.slip-credit{display:none}
+body.display .credit{color:#90a0bd}
 main{padding:16px;max-width:1400px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
 .card h2{margin:0 0 10px;font-size:17px}
@@ -141,6 +150,9 @@ body.display .pill{background:#26324a;color:#c3cde0}
   .slip-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
   .slip-grid .slip{margin:0}
   header,nav,.noprint,button{display:none!important}
+  .credit{padding:8px 0 0;color:#000;font-size:11px}.credit .url{display:inline}
+  .slip-credit{display:block;text-align:center;font-size:11px;color:#000;margin-top:6px}
+  .slip-credit img{height:16px;vertical-align:middle;margin-right:5px}
   body{background:#fff}
   .card{break-inside:avoid;border-color:#999}
   main{padding:0}
@@ -153,9 +165,10 @@ body.display .pill{background:#26324a;color:#c3cde0}
   <h1 id="title">Clubkampioenschap</h1>
   <nav id="nav"></nav>
   <div class="hdr-right">
-    <button class="sm" data-action="new-tournament" title="Begin een nieuw tornooi">＋ Nieuw tornooi</button>
-    <button class="sm" data-action="undo" id="undoBtn" title="Laatste wijziging ongedaan maken">↶ Ongedaan maken</button>
-    <button class="sm" data-action="open-display" title="Open een tweede venster voor tv/beamer">🖥 Scherm</button>
+    <select class="sm" data-lang id="hdrLang" title="Taal · Langue · Language" aria-label="Taal · Langue · Language"><option value="nl">NL</option><option value="fr">FR</option><option value="en">EN</option></select>
+    <button class="sm" data-action="new-tournament" data-i18n="＋ Nieuw tornooi" data-i18n-title="Begin een nieuw tornooi">＋ Nieuw tornooi</button>
+    <button class="sm" data-action="undo" id="undoBtn" data-i18n="↶ Ongedaan maken" data-i18n-title="Laatste wijziging ongedaan maken">↶ Ongedaan maken</button>
+    <button class="sm" data-action="open-display" data-i18n="🖥 Scherm" data-i18n-title="Open een tweede venster voor tv/beamer">🖥 Scherm</button>
   </div>
 </header>
 <main id="app"></main>
@@ -163,6 +176,253 @@ body.display .pill{background:#26324a;color:#c3cde0}
 <div id="slips"></div>
 
 <script>
+/* =========================================================================
+   Talen: Nederlands is de brontaal. Elke zin in de code staat in het Nederlands in L('…');
+   I18N_TABLE geeft de Franse en Engelse vertaling van die zin ({0}, {1}, … worden ingevuld).
+   Ontbreekt een vertaling, dan verschijnt het Nederlands.
+   ========================================================================= */
+const LANGS = { nl: 'Nederlands', fr: 'Français', en: 'English' };
+let LANG = 'nl';
+// Vertaaltabel: Nederlandse zin -> [Frans, Engels]
+const I18N_TABLE = {
+  "Clubkampioenschap": ["Championnat du club", "Club championship"],
+  "Set {0} is te veel: de wedstrijd was al beslist.": ["La manche {0} est de trop : le match était déjà décidé.", "Game {0} is one too many: the match was already decided."],
+  " (doelscores {0} en {1})": [" (scores à atteindre {0} et {1})", " (target scores {0} and {1})"],
+  " (tot 11 met 2 verschil; wie {0} voorgift krijgt, heeft minstens {0} punten)": [" (jusqu’à 11 avec 2 points d’écart ; qui reçoit {0} points d’avance a au moins {0} points)", " (to 11 with a 2-point margin; whoever gets a {0}-point head start has at least {0} points)"],
+  "Set {0} ({1}-{2}) is geen geldige setstand{3}.": ["La manche {0} ({1}-{2}) n’est pas un score valable{3}.", "Game {0} ({1}-{2}) is not a valid game score{3}."],
+  "Nog niet beslist: iemand moet {0} sets winnen (nu {1}-{2}).": ["Pas encore décidé : un joueur doit gagner {0} manches (actuellement {1}-{2}).", "Not decided yet: someone has to win {0} games (now {1}-{2})."],
+  "Ongeldige setscore.": ["Score en manches non valable.", "Invalid game score."],
+  "Deze wijziging verandert wie er in een al gespeelde eindrondewedstrijd staat. Wis eerst die eindronde-uitslag.": ["Cette modification change les joueurs d’un match de la phase finale déjà joué. Effacez d’abord ce résultat.", "This change would alter who played in a knockout match that has already been played. Clear that knockout result first."],
+  "Start eerst de poules.": ["Lancez d’abord les poules.", "Start the groups first."],
+  "De eindrondes zijn al aangemaakt. Wis eerst de eindrondes om poule-uitslagen te wijzigen.": ["La phase finale est déjà créée. Effacez-la d’abord pour modifier des résultats de poule.", "The knockout stage has already been created. Clear it first to change group results."],
+  "De volgende ronde is al bezig of gespeeld. Wis eerst die uitslag.": ["Le tour suivant est déjà en cours ou joué. Effacez d’abord ce résultat.", "The next round is already in progress or played. Clear that result first."],
+  "Deze wedstrijd kan nog niet gespeeld worden.": ["Ce match ne peut pas encore être joué.", "This match cannot be played yet."],
+  "Finale": ["Finale", "Final"],
+  "Halve finale": ["Demi-finale", "Semi-final"],
+  "Kwartfinale": ["Quart de finale", "Quarter-final"],
+  "1/{0} finale": ["1/{0} de finale", "Round of {0}"],
+  "Om plaats {0}": ["Pour la place {0}", "For place {0}"],
+  "Plaats {0}-{1}": ["Places {0}-{1}", "Places {0}-{1}"],
+  "{0}de": ["{0}e", "{0}th"],
+  "vrij": ["bye", "bye"],
+  "{0} poule {1}": ["{0} poule {1}", "{0} group {1}"],
+  "Taal": ["Langue", "Language"],
+  "Gemaakt door {0}": ["Réalisé par {0}", "Made by {0}"],
+  "Spelers": ["Joueurs", "Players"],
+  "Poules": ["Poules", "Groups"],
+  "Wedstrijden & tafels": ["Matchs & tables", "Matches & tables"],
+  "Eindrondes": ["Phase finale", "Knockout"],
+  "Instellingen & back-up": ["Paramètres & sauvegarde", "Settings & backup"],
+  "Opslaan in de browser lukt niet. Download regelmatig een back-up (Instellingen & back-up).": ["L’enregistrement dans le navigateur ne fonctionne pas. Téléchargez régulièrement une sauvegarde (Paramètres & sauvegarde).", "Saving in the browser does not work. Download a backup regularly (Settings & backup)."],
+  "geen antwoord binnen 15 seconden": ["pas de réponse dans les 15 secondes", "no answer within 15 seconds"],
+  "VTTL meldt: ": ["La VTTL signale : ", "VTTL reports: "],
+  "onverwacht antwoord van VTTL ({0})": ["réponse inattendue de la VTTL ({0})", "unexpected answer from VTTL ({0})"],
+  "niet gevonden": ["introuvable", "not found"],
+  "{0} lukt niet ({1}). {2} De lijst van de eigen club en \"Meerdere spelers tegelijk plakken\" blijven werken.": ["{0} : échec ({1}). {2} La liste du club et « Coller plusieurs joueurs à la fois » restent disponibles.", "{0} failed ({1}). {2} The own club list and \"Paste several players at once\" still work."],
+  "geen verbinding": ["pas de connexion", "no connection"],
+  "VTTL antwoordt, maar anders dan verwacht.": ["La VTTL répond, mais pas comme prévu.", "VTTL answers, but not as expected."],
+  "Controleer het internet.": ["Vérifiez la connexion internet.", "Check the internet connection."],
+  "geen clubs herkend in het antwoord: ": ["aucun club reconnu dans la réponse : ", "no clubs recognised in the answer: "],
+  "Clubs ophalen bij VTTL": ["Récupérer les clubs auprès de la VTTL", "Fetching clubs from VTTL"],
+  "Leden ophalen bij VTTL": ["Récupérer les membres auprès de la VTTL", "Fetching members from VTTL"],
+  "kies eerst een club": ["choisissez d’abord un club", "choose a club first"],
+  "geen leden herkend voor club {0}: ": ["aucun membre reconnu pour le club {0} : ", "no members recognised for club {0}: "],
+  "Geen club gevonden": ["Aucun club trouvé", "No club found"],
+  "Andere club… (lijst ophalen bij VTTL)": ["Autre club… (liste depuis la VTTL)", "Other club… (fetch list from VTTL)"],
+  "Club": ["Club", "Club"],
+  "Zoek club (deel van de naam)": ["Chercher un club (partie du nom)", "Search club (part of the name)"],
+  "Leden en klassementen van VTTL, opgehaald op {0}.": ["Membres et classements de la VTTL, récupérés le {0}.", "Members and rankings from VTTL, fetched on {0}."],
+  "Clubleden kiezen": ["Choisir des membres du club", "Choose club members"],
+  "{0} leden": ["{0} membres", "{0} members"],
+  "Zoek op naam": ["Chercher par nom", "Search by name"],
+  "Alle klassementen": ["Tous les classements", "All rankings"],
+  "{0}-spelers": ["Joueurs {0}", "{0} players"],
+  "Alle getoonde aanvinken": ["Cocher tous les affichés", "Tick all shown"],
+  "Niets aanvinken": ["Tout décocher", "Untick all"],
+  "Om te testen: vinkt 25 willekeurige leden aan": ["Pour tester : coche 25 membres au hasard", "For testing: ticks 25 random members"],
+  "25 willekeurige (test)": ["25 au hasard (test)", "25 random (test)"],
+  "Aangevinkte spelers toevoegen": ["Ajouter les joueurs cochés", "Add ticked players"],
+  "Grijs = staat al in de lijst. Klassement fout? Pas het hieronder aan in de spelerslijst.": ["Gris = déjà dans la liste. Classement erroné ? Corrigez-le ci-dessous dans la liste des joueurs.", "Grey = already in the list. Wrong ranking? Change it below in the player list."],
+  "Laatkomer toevoegen": ["Ajouter un retardataire", "Add a late arrival"],
+  "Familienaam Voornaam": ["Nom Prénom", "Surname First name"],
+  "Poule {0} ({1} spelers)": ["Poule {0} ({1} joueurs)", "Group {0} ({1} players)"],
+  "Toevoegen": ["Ajouter", "Add"],
+  "De speler komt in de gekozen poule en krijgt wedstrijden tegen iedereen uit die poule. Kies best een poule van 3. Dit kan tot je de eindrondes aanmaakt.": ["Le joueur rejoint la poule choisie et rencontre tous les joueurs de cette poule. Choisissez de préférence une poule de 3. Possible jusqu’à la création de la phase finale.", "The player joins the chosen group and plays everyone in it. Preferably choose a group of 3. Possible until you create the knockout stage."],
+  "De loting is gemaakt maar de poules zijn nog niet gestart. Wil je nog iemand toevoegen? Ga naar <b>Poules</b> en klik op \"← Terug naar spelers\". Zodra de poules gestart zijn, verschijnt hier \"Laatkomer toevoegen\".": ["Le tirage est fait mais les poules n’ont pas encore commencé. Encore quelqu’un à ajouter ? Allez dans <b>Poules</b> et cliquez sur « ← Retour aux joueurs ». Dès que les poules ont commencé, « Ajouter un retardataire » apparaît ici.", "The draw is made but the groups have not started yet. Want to add someone? Go to <b>Groups</b> and click \"← Back to players\". Once the groups have started, \"Add a late arrival\" appears here."],
+  "De eindrondes zijn aangemaakt. Een laatkomer toevoegen kan nu niet meer.": ["La phase finale est créée. Il n’est plus possible d’ajouter un retardataire.", "The knockout stage has been created. Adding a late arrival is no longer possible."],
+  "Instellingen": ["Paramètres", "Settings"],
+  "Naam": ["Nom", "Name"],
+  "Wedstrijden": ["Matchs", "Matches"],
+  "{0} winnende sets": ["{0} manches gagnantes", "first to {0} games"],
+  "Vanaf halve finale": ["À partir des demi-finales", "From the semi-finals"],
+  "Tafels": ["Tables", "Tables"],
+  "Poulegrootte": ["Taille des poules", "Group size"],
+  "Door naar hoofdtabel": ["Qualifiés pour le tableau principal", "Through to the main draw"],
+  "top {0}": ["top {0}", "top {0}"],
+  "Troosttabel voor de anderen": ["Tableau de consolation pour les autres", "Consolation draw for the others"],
+  "Spelers toevoegen": ["Ajouter des joueurs", "Add players"],
+  "Tik de naam als <b>Familienaam Voornaam</b> (bv. De Moerloose Wim), zoals in de ledenlijst. Zo klopt het alfabetisch sorteren op familienaam bij de loting.": ["Tapez le nom sous la forme <b>Nom Prénom</b> (p. ex. Dupont Jean), comme dans la liste des membres. Ainsi, le tri alphabétique sur le nom de famille est correct lors du tirage.", "Type the name as <b>Surname First name</b> (e.g. Smith John), as in the member list. That way, sorting alphabetically by surname works in the draw."],
+  "Meerdere spelers tegelijk plakken": ["Coller plusieurs joueurs à la fois", "Paste several players at once"],
+  "Eén speler per lijn, als Familienaam Voornaam. Klassement mag erachter, gescheiden door ; of tab of komma. Bv. <code>Peeters Jan; C4</code>": ["Un joueur par ligne, sous la forme Nom Prénom. Le classement peut suivre, séparé par ; ou une tabulation ou une virgule. P. ex. <code>Peeters Jan; C4</code>", "One player per line, as Surname First name. The ranking may follow, separated by ; or tab or comma. E.g. <code>Peeters Jan; C4</code>"],
+  "Deelnemers ({0})": ["Participants ({0})", "Participants ({0})"],
+  "Dit geeft {0} poules: {1} spelers.": ["Cela donne {0} poules : {1} joueurs.", "This gives {0} groups: {1} players."],
+  "Dit geeft 1 poule: {0} spelers.": ["Cela donne 1 poule : {0} joueurs.", "This gives 1 group: {0} players."],
+  "Minstens 3 spelers nodig.": ["Au moins 3 joueurs nécessaires.", "At least 3 players needed."],
+  "Klassement": ["Classement", "Ranking"],
+  "Poule": ["Poule", "Group"],
+  "afgemeld": ["retiré", "withdrawn"],
+  "Verwijderen": ["Supprimer", "Remove"],
+  "Afmelden": ["Retirer", "Withdraw"],
+  "Loting maken": ["Faire le tirage", "Make the draw"],
+  "Nr": ["N°", "No."],
+  "Speler": ["Joueur", "Player"],
+  "Gespeeld": ["Joués", "Played"],
+  "Gesp": ["Joués", "Pld"],
+  "G": ["J", "P"],
+  "Gewonnen": ["Gagnés", "Won"],
+  "W": ["G", "W"],
+  "Verloren": ["Perdus", "Lost"],
+  "V": ["P", "L"],
+  "Matchpunten": ["Points de match", "Match points"],
+  "Ptn": ["Pts", "Pts"],
+  "Sets": ["Manches", "Games"],
+  "Punten": ["Points", "Points"],
+  "Plaats in de poule": ["Place dans la poule", "Position in the group"],
+  "Pl.": ["Pl.", "Pos."],
+  "tafel {0}": ["table {0}", "table {0}"],
+  "forfait": ["forfait", "walkover"],
+  "Wijzig": ["Modifier", "Edit"],
+  "Uitslag": ["Résultat", "Result"],
+  "Bij gelijk klassement": ["À classement égal", "Equal ranking"],
+  "alfabetisch": ["ordre alphabétique", "alphabetical"],
+  "omgekeerd alfabetisch": ["ordre alphabétique inversé", "reverse alphabetical"],
+  "willekeurig": ["au hasard", "random"],
+  "volgorde van de spelerslijst": ["ordre de la liste des joueurs", "order of the player list"],
+  "Terug naar spelers": ["Retour aux joueurs", "Back to players"],
+  "Slangsysteem (standaard)": ["Système serpent (par défaut)", "Snake system (default)"],
+  "Loten binnen de potten": ["Tirage au sort dans les chapeaux", "Draw within the pots"],
+  "Poules starten": ["Lancer les poules", "Start the groups"],
+  "De nummers 1-4 bepalen de wedstrijden (1-4, 2-3, 1-3, 2-4, 1-2, 3-4). Klik op twee spelers om ze van plaats te wisselen, ook binnen dezelfde poule.": ["Les numéros 1-4 déterminent les matchs (1-4, 2-3, 1-3, 2-4, 1-2, 3-4). Cliquez sur deux joueurs pour les échanger, aussi dans la même poule.", "The numbers 1-4 determine the matches (1-4, 2-3, 1-3, 2-4, 1-2, 3-4). Click two players to swap them, also within the same group."],
+  "Poule {0}": ["Poule {0}", "Group {0}"],
+  "Afdrukken (reserve op papier)": ["Imprimer (réserve sur papier)", "Print (paper backup)"],
+  "Wedstrijdbriefjes poules": ["Feuilles de match des poules", "Group match sheets"],
+  "Blauwe rijen gaan door naar de hoofdtabel. Rangschikking: matchpunten (winst 2, verlies 1, forfait 0), daarna onderling resultaat.": ["Les lignes bleues passent au tableau principal. Classement : points de match (victoire 2, défaite 1, forfait 0), puis résultats entre eux.", "Blue rows go through to the main draw. Ranking: match points (win 2, loss 1, walkover 0), then head-to-head results."],
+  "Puntenaanpassing": ["Ajustement des points", "Point adjustment"],
+  "voorgift: laagst geklasseerde start met voorsprong, iedereen tot 11": ["avance : le moins bien classé commence avec des points d’avance, tous jusqu’à 11", "head start: lower-ranked player starts with a lead, everyone to 11"],
+  "handicap: hoogst geklasseerde speelt verder dan 11": ["handicap : le mieux classé joue au-delà de 11", "handicap: higher-ranked player plays beyond 11"],
+  "geen aanpassing": ["pas d’ajustement", "no adjustment"],
+  "1 per 2 klassementen (1 klassement = 0)": ["1 par 2 classements (1 classement = 0)", "1 per 2 rankings (1 ranking = 0)"],
+  "VTTL-tabel (1 klassement = 1)": ["tableau VTTL (1 classement = 1)", "VTTL table (1 ranking = 1)"],
+  "Voorgift: {0} start met {1} punten ({2}), tot 11": ["Avance : {0} commence avec {1} points ({2}), jusqu’à 11", "Head start: {0} starts with {1} points ({2}), to 11"],
+  "Voorgift: {0} start met {1} punt ({2}), tot 11": ["Avance : {0} commence avec {1} point ({2}), jusqu’à 11", "Head start: {0} starts with {1} point ({2}), to 11"],
+  "{0} tot {1}": ["{0} jusqu’à {1}", "{0} to {1}"],
+  "Telt: {0}": ["Arbitre : {0}", "Umpire: {0}"],
+  "wedstrijd {0}": ["match {0}", "match {0}"],
+  "Tafel: {0}": ["Table : {0}", "Table: {0}"],
+  "Set {0}": ["Manche {0}", "Game {0}"],
+  "tot {0}": ["jusqu’à {0}", "to {0}"],
+  "start met {0}": ["commence à {0}", "starts at {0}"],
+  "{0} winnende sets tot 11": ["{0} manches gagnantes de 11 points", "first to {0} games of 11"],
+  "Winnaar brengt dit briefje terug": ["Le gagnant rapporte cette feuille", "Winner returns this sheet"],
+  "Geen wedstrijden om af te drukken.": ["Aucun match à imprimer.", "No matches to print."],
+  "Troosttabel": ["Tableau de consolation", "Consolation draw"],
+  "Hoofdtabel": ["Tableau principal", "Main draw"],
+  "Alle poulewedstrijden zijn gespeeld.": ["Tous les matchs de poule sont joués.", "All group matches have been played."],
+  "Eindrondes aanmaken": ["Créer la phase finale", "Create the knockout stage"],
+  "Clubkampioen: {0}": ["Champion du club : {0}", "Club champion: {0}"],
+  "Laatkomer": ["Retardataire", "Late arrival"],
+  "Briefjes lopende wedstrijden": ["Feuilles des matchs en cours", "Sheets for current matches"],
+  "Vrije tafels vullen": ["Remplir les tables libres", "Fill free tables"],
+  "Tafel {0}": ["Table {0}", "Table {0}"],
+  "Terug naar wachtrij": ["Remettre en attente", "Back to the queue"],
+  "Vrij": ["Libre", "Free"],
+  "Klaar om te spelen ({0})": ["Prêts à jouer ({0})", "Ready to play ({0})"],
+  "Geen wedstrijden klaar.": ["Aucun match prêt.", "No matches ready."],
+  "Wacht op lopende wedstrijden.": ["En attente des matchs en cours.", "Waiting for current matches."],
+  "Naar tafel…": ["Vers la table…", "To table…"],
+  "Wacht op speler die nog bezig is ({0})": ["En attente d’un joueur encore en jeu ({0})", "Waiting for a player who is still playing ({0})"],
+  "Laatst gespeeld": ["Derniers matchs joués", "Recently played"],
+  "best of {0}": ["au meilleur des {0}", "best of {0}"],
+  "Geen tabel.": ["Pas de tableau.", "No draw."],
+  "Plaatsingswedstrijden": ["Matchs de classement", "Placement matches"],
+  "Eindklassement (voorlopig)": ["Classement final (provisoire)", "Final standings (provisional)"],
+  "Eindklassement": ["Classement final", "Final standings"],
+  "2de: {0}": ["2e : {0}", "2nd: {0}"],
+  "3de: {0}": ["3e : {0}", "3rd: {0}"],
+  " en ": [" et ", " and "],
+  "Nog {0} poulewedstrijden te spelen.": ["Encore {0} matchs de poule à jouer.", "{0} group matches still to play."],
+  "Nog {0} poulewedstrijd te spelen.": ["Encore {0} match de poule à jouer.", "{0} group match still to play."],
+  "Je kunt de eindrondes nu al aanmaken: de tabel toont dan \"{0}\" enzovoort en vult zich vanzelf in zodra een poule klaar is. Wedstrijden waarvan beide spelers bekend zijn, kunnen meteen starten.": ["Vous pouvez déjà créer la phase finale : le tableau affiche alors « {0} », etc., et se remplit automatiquement dès qu’une poule est terminée. Les matchs dont les deux joueurs sont connus peuvent commencer tout de suite.", "You can already create the knockout stage: the draw then shows \"{0}\" and so on, and fills itself in as soon as a group is finished. Matches with both players known can start right away."],
+  "Eindrondes nu al aanmaken": ["Créer la phase finale dès maintenant", "Create the knockout stage now"],
+  "Let op: daarna kun je geen laatkomer meer toevoegen en niemand meer afmelden.": ["Attention : ensuite, vous ne pouvez plus ajouter de retardataire ni retirer de joueur.", "Note: after that you can no longer add a late arrival or withdraw anyone."],
+  "Alle poules zijn klaar.": ["Toutes les poules sont terminées.", "All groups are finished."],
+  "Top {0} van elke poule gaat naar de hoofdtabel, de anderen naar de troosttabel.": ["Le top {0} de chaque poule va au tableau principal, les autres au tableau de consolation.", "The top {0} of each group go to the main draw, the others to the consolation draw."],
+  "Top {0} van elke poule gaat naar de hoofdtabel.": ["Le top {0} de chaque poule va au tableau principal.", "The top {0} of each group go to the main draw."],
+  "Iedereen speelt door tot zijn eindplaats vaststaat. De opstelling volgt de vaste eindrondetabellen van de club (2 tot 8 poules).": ["Chacun joue jusqu’à ce que sa place finale soit connue. Le tableau suit les tableaux fixes du club (2 à 8 poules).", "Everyone keeps playing until their final place is decided. The draw follows the club’s fixed knockout tables (2 to 8 groups)."],
+  "Klik op een wedstrijd om de uitslag in te geven. <b style=\"color:var(--ok)\">Groen</b> = beide spelers zijn bekend, deze wedstrijd kan nu gespeeld worden.": ["Cliquez sur un match pour encoder le résultat. <b style=\"color:var(--ok)\">Vert</b> = les deux joueurs sont connus, ce match peut être joué maintenant.", "Click a match to enter the result. <b style=\"color:var(--ok)\">Green</b> = both players are known, this match can be played now."],
+  "Afdrukken": ["Imprimer", "Print"],
+  "Eindrondes wissen": ["Effacer la phase finale", "Clear the knockout stage"],
+  "Let op: dit wist ook de al gespeelde eindronde-uitslagen.": ["Attention : cela efface aussi les résultats déjà joués de la phase finale.", "Note: this also clears knockout results already played."],
+  "Bv. om nog een poule-uitslag te verbeteren.": ["P. ex. pour corriger encore un résultat de poule.", "E.g. to correct a group result."],
+  "De keuze wordt onthouden in deze browser. Ook de briefjes en het tv-scherm volgen de taal.": ["Le choix est mémorisé dans ce navigateur. Les feuilles de match et l’écran TV suivent aussi la langue.", "The choice is remembered in this browser. Match sheets and the TV screen follow the language too."],
+  "Back-up": ["Sauvegarde", "Backup"],
+  "Alles wordt automatisch in deze browser bewaard (ook zonder internet). Download af en toe een back-up, bv. na de poules. Met een back-up kun je verder op een andere laptop.": ["Tout est enregistré automatiquement dans ce navigateur (même sans internet). Téléchargez de temps en temps une sauvegarde, p. ex. après les poules. Avec une sauvegarde, vous pouvez continuer sur un autre ordinateur.", "Everything is saved automatically in this browser (even without internet). Download a backup now and then, e.g. after the groups. With a backup you can continue on another laptop."],
+  "Back-up downloaden": ["Télécharger une sauvegarde", "Download backup"],
+  "Back-up laden": ["Charger une sauvegarde", "Load backup"],
+  "Instellingen tijdens het tornooi": ["Paramètres pendant le tournoi", "Settings during the tournament"],
+  "Aantal tafels": ["Nombre de tables", "Number of tables"],
+  "Wedstrijdformaat: {0} winnende sets, vanaf halve finale {1} · top {2} door · troosttabel {3}": ["Format : {0} manches gagnantes, {1} à partir des demi-finales · top {2} qualifiés · tableau de consolation {3}", "Format: first to {0} games, {1} from the semi-finals · top {2} through · consolation draw {3}"],
+  "ja": ["oui", "yes"],
+  "nee": ["non", "no"],
+  "Tweede scherm": ["Deuxième écran", "Second screen"],
+  "Open <b>🖥 Scherm</b> (rechtsboven) en sleep dat venster naar de tv of beamer (F11 voor volledig scherm). Het volgt automatisch alle uitslagen die je hier ingeeft.": ["Ouvrez <b>🖥 Écran</b> (en haut à droite) et faites glisser cette fenêtre vers la TV ou le projecteur (F11 pour le plein écran). Elle suit automatiquement tous les résultats encodés ici.", "Open <b>🖥 Screen</b> (top right) and drag that window to the TV or projector (F11 for full screen). It automatically follows all results you enter here."],
+  "Nieuw tornooi": ["Nouveau tournoi", "New tournament"],
+  "Sluit het huidige tornooi af en begint opnieuw. Er wordt eerst automatisch een back-up gedownload, en de instellingen blijven behouden.": ["Clôture le tournoi actuel et recommence. Une sauvegarde est d’abord téléchargée automatiquement, et les paramètres sont conservés.", "Closes the current tournament and starts again. A backup is downloaded automatically first, and the settings are kept."],
+  "Clubkampioen": ["Champion du club", "Club champion"],
+  "Nu aan tafel": ["À table maintenant", "Now at the table"],
+  "Volgende": ["Suivants", "Next"],
+  "Het tornooi start binnenkort.": ["Le tournoi commence bientôt.", "The tournament starts soon."],
+  "bv. {0}-7 of 7": ["p. ex. {0}-7 ou 7", "e.g. {0}-7 or 7"],
+  "Typ de eindstand op het telbord (voorgift inbegrepen), bv. <b>11-7</b>, of kort vanuit {0}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.": ["Tapez le score final du marqueur (avance comprise), p. ex. <b>11-7</b>, ou en bref du point de vue de {0} : <b>7</b> = gagné 11-7, <b>-9</b> = perdu 9-11, <b>12</b> = 14-12.", "Type the final score on the scoreboard (head start included), e.g. <b>11-7</b>, or in short from {0}’s side: <b>7</b> = won 11-7, <b>-9</b> = lost 9-11, <b>12</b> = 14-12."],
+  "Handicap: {0} speelt tot <b>{1}</b>, {2} tot <b>{3}</b>. Typ de echte stand, bv. <b>{1}-7</b>, of kort vanuit {0}: <b>7</b> = gewonnen met 7 tegen, <b>-9</b> = verloren met zelf 9.": ["Handicap : {0} joue jusqu’à <b>{1}</b>, {2} jusqu’à <b>{3}</b>. Tapez le score réel, p. ex. <b>{1}-7</b>, ou en bref du point de vue de {0} : <b>7</b> = gagné avec 7 contre, <b>-9</b> = perdu avec 9 marqués.", "Handicap: {0} plays to <b>{1}</b>, {2} to <b>{3}</b>. Type the real score, e.g. <b>{1}-7</b>, or in short from {0}’s side: <b>7</b> = won conceding 7, <b>-9</b> = lost scoring 9."],
+  "Typ <b>11-7</b>, of kort vanuit {0}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.": ["Tapez <b>11-7</b>, ou en bref du point de vue de {0} : <b>7</b> = gagné 11-7, <b>-9</b> = perdu 9-11, <b>12</b> = 14-12.", "Type <b>11-7</b>, or in short from {0}’s side: <b>7</b> = won 11-7, <b>-9</b> = lost 9-11, <b>12</b> = 14-12."],
+  "Opslaan": ["Enregistrer", "Save"],
+  "Annuleren": ["Annuler", "Cancel"],
+  "Uitslag wissen": ["Effacer le résultat", "Clear result"],
+  "Of meteen alleen de sets": ["Ou seulement les manches", "Or just the games"],
+  "Forfait {0}": ["Forfait {0}", "Walkover: {0} absent"],
+  "Niet toegevoegd, naam bestaat al: {0}. Voeg bv. een initiaal of \"sr/jr\" toe.": ["Non ajouté, ce nom existe déjà : {0}. Ajoutez p. ex. une initiale ou « sr/jr ».", "Not added, name already exists: {0}. Add e.g. an initial or \"sr/jr\"."],
+  "{0} spelers toegevoegd": ["{0} joueurs ajoutés", "{0} players added"],
+  "{0} speler toegevoegd": ["{0} joueur ajouté", "{0} player added"],
+  "Vink eerst spelers aan.": ["Cochez d’abord des joueurs.", "Tick some players first."],
+  "Er is al een speler met de naam {0}. Voeg bv. een initiaal toe.": ["Il y a déjà un joueur nommé {0}. Ajoutez p. ex. une initiale.", "There is already a player named {0}. Add e.g. an initial."],
+  "Set {0}: \"{1}\" begrijp ik niet.": ["Manche {0} : « {1} » n’est pas compris.", "Game {0}: \"{1}\" is not understood."],
+  "{0} willekeurige leden aangevinkt. Klik op \"Aangevinkte spelers toevoegen\".": ["{0} membres cochés au hasard. Cliquez sur « Ajouter les joueurs cochés ».", "{0} random members ticked. Click \"Add ticked players\"."],
+  "Ongedaan gemaakt": ["Annulé", "Undone"],
+  "{0} afmelden? Alle resterende poulewedstrijden worden forfait.": ["Retirer {0} ? Tous ses matchs de poule restants seront perdus par forfait.", "Withdraw {0}? All remaining group matches become walkovers."],
+  "Eindrondes wissen? De poule-uitslagen blijven bewaard.": ["Effacer la phase finale ? Les résultats des poules sont conservés.", "Clear the knockout stage? Group results are kept."],
+  "Bent u zeker? Het huidige tornooi wordt afgesloten en alle spelers en uitslagen worden gewist.": ["Êtes-vous sûr ? Le tournoi actuel sera clôturé et tous les joueurs et résultats seront effacés.", "Are you sure? The current tournament will be closed and all players and results will be cleared."],
+  "Er wordt eerst automatisch een back-up gedownload.": ["Une sauvegarde est d’abord téléchargée automatiquement.", "A backup is downloaded automatically first."],
+  "Nieuw tornooi gestart": ["Nouveau tournoi commencé", "New tournament started"],
+  "Een naam mag niet leeg zijn.": ["Le nom ne peut pas être vide.", "A name cannot be empty."],
+  "Er is al een speler met de naam {0}.": ["Il y a déjà un joueur nommé {0}.", "There is already a player named {0}."],
+  "Back-up geladen": ["Sauvegarde chargée", "Backup loaded"],
+  "Dit is geen geldig back-upbestand.": ["Ce n’est pas un fichier de sauvegarde valable.", "This is not a valid backup file."],
+  "＋ Nieuw tornooi": ["＋ Nouveau tournoi", "＋ New tournament"],
+  "Begin een nieuw tornooi": ["Commencer un nouveau tournoi", "Start a new tournament"],
+  "↶ Ongedaan maken": ["↶ Annuler", "↶ Undo"],
+  "Laatste wijziging ongedaan maken": ["Annuler la dernière modification", "Undo the last change"],
+  "🖥 Scherm": ["🖥 Écran", "🖥 Screen"],
+  "Open een tweede venster voor tv/beamer": ["Ouvrir une deuxième fenêtre pour la TV/le projecteur", "Open a second window for TV/projector"]
+};
+const I18N = { fr: {}, en: {} };
+Object.entries(I18N_TABLE).forEach(([nl, [fr, en]]) => { I18N.fr[nl] = fr; I18N.en[nl] = en; });
+function L(key, ...a) {
+  const t = (I18N[LANG] && I18N[LANG][key]) ?? key;
+  return a.length ? t.replace(/\{(\d)\}/g, (m, i) => a[i] ?? '') : t;
+}
+window.I18N = I18N; window.I18N_TABLE = I18N_TABLE;
+
 /* =========================================================================
    Logica (zonder DOM) — ook gebruikt door de tests via window.TT
    ========================================================================= */
@@ -173,7 +433,7 @@ const TT = (() => {
   function newState() {
     return {
       version: 1,
-      name: 'Clubkampioenschap',
+      name: L('Clubkampioenschap'),
       settings: { bestOf: 3, bestOfFinals: 5, handicap: 'lead', hcRound: 'down', tables: 4, pouleSize: 4, qualifiers: 2, consolation: true, drawTie: 'az' },
       stage: 'setup',            // setup | draw | poules | knockout
       players: [],               // {id,name,rank,withdrawn}
@@ -309,16 +569,20 @@ const TT = (() => {
     const need = Math.ceil(bestOf / 2);
     let w1 = 0, w2 = 0;
     for (let i = 0; i < sets.length; i++) {
-      if (w1 === need || w2 === need) return { ok: false, error: `Set ${i + 1} is te veel: de wedstrijd was al beslist.` };
-      if (!validSet(sets[i], h, lead)) return { ok: false, error: `Set ${i + 1} (${sets[i][0]}-${sets[i][1]}) is geen geldige setstand${h[0] || h[1] ? ` (doelscores ${11 + Math.max(...h) - h[0]} en ${11 + Math.max(...h) - h[1]})` : lead[0] || lead[1] ? ` (tot 11 met 2 verschil; wie ${Math.max(...lead)} voorgift krijgt, heeft minstens ${Math.max(...lead)} punten)` : ''}.` };
+      if (w1 === need || w2 === need) return { ok: false, error: L('Set {0} is te veel: de wedstrijd was al beslist.', i + 1) };
+      if (!validSet(sets[i], h, lead)) {
+        const why = h[0] || h[1] ? L(' (doelscores {0} en {1})', 11 + Math.max(...h) - h[0], 11 + Math.max(...h) - h[1])
+          : lead[0] || lead[1] ? L(' (tot 11 met 2 verschil; wie {0} voorgift krijgt, heeft minstens {0} punten)', Math.max(...lead)) : '';
+        return { ok: false, error: L('Set {0} ({1}-{2}) is geen geldige setstand{3}.', i + 1, sets[i][0], sets[i][1], why) };
+      }
       sets[i][0] + h[0] > sets[i][1] + h[1] ? w1++ : w2++;
     }
-    if (w1 !== need && w2 !== need) return { ok: false, error: `Nog niet beslist: iemand moet ${need} sets winnen (nu ${w1}-${w2}).` };
+    if (w1 !== need && w2 !== need) return { ok: false, error: L('Nog niet beslist: iemand moet {0} sets winnen (nu {1}-{2}).', need, w1, w2) };
     return { ok: true, score: [w1, w2] };
   }
   function checkScore(score, bestOf) {
     const need = Math.ceil(bestOf / 2), [a, b] = score;
-    if (!(a >= 0 && b >= 0) || Math.max(a, b) !== need || Math.min(a, b) >= need) return { ok: false, error: 'Ongeldige setscore.' };
+    if (!(a >= 0 && b >= 0) || Math.max(a, b) !== need || Math.min(a, b) >= need) return { ok: false, error: L('Ongeldige setscore.') };
     return { ok: true, score: [a, b] };
   }
 
@@ -546,7 +810,7 @@ const TT = (() => {
       const [o1, o2] = orig.get(m.id), changed = m.p1 !== o1 || m.p2 !== o2;
       if (m.bye) return;                       // al automatisch doorgeschoven
       if (m.winner) {
-        if (changed) throw new Error('Deze wijziging verandert wie er in een al gespeelde eindrondewedstrijd staat. Wis eerst die eindronde-uitslag.');
+        if (changed) throw new Error(L('Deze wijziging verandert wie er in een al gespeelde eindrondewedstrijd staat. Wis eerst die eindronde-uitslag.'));
         propagate(s, m);
       } else {
         if (changed && m.table) { m.table = null; m.started = null; m.ump = null; }
@@ -557,7 +821,7 @@ const TT = (() => {
   }
 
   function startKnockout(s) {
-    if (!s.matches.some(m => m.kind === 'poule')) throw new Error('Start eerst de poules.');
+    if (!s.matches.some(m => m.kind === 'poule')) throw new Error(L('Start eerst de poules.'));
     s.matches = s.matches.filter(m => m.kind === 'poule');
     const { main, cons } = koEntries(s);
     createBracket(s, 'main', main, 0);
@@ -576,16 +840,16 @@ const TT = (() => {
   function canEdit(s, m) {
     if (m.kind === 'poule') {
       const legacy = s.matches.some(x => x.kind !== 'poule' && x.gsize === x.B && x.t1 === undefined);
-      return s.stage === 'poules' || !legacy ? { ok: true } : { ok: false, error: 'De eindrondes zijn al aangemaakt. Wis eerst de eindrondes om poule-uitslagen te wijzigen.' };
+      return s.stage === 'poules' || !legacy ? { ok: true } : { ok: false, error: L('De eindrondes zijn al aangemaakt. Wis eerst de eindrondes om poule-uitslagen te wijzigen.') };
     }
-    if (isDone(m) && downstreamBlocked(s, m)) return { ok: false, error: 'De volgende ronde is al bezig of gespeeld. Wis eerst die uitslag.' };
+    if (isDone(m) && downstreamBlocked(s, m)) return { ok: false, error: L('De volgende ronde is al bezig of gespeeld. Wis eerst die uitslag.') };
     return { ok: true };
   }
 
   // result: {sets:[[a,b]...]} | {score:[a,b]} | {wo: 1|2} (1 = speler 1 geeft forfait)
   function setResult(s, id, result) {
     const m = s.matches.find(x => x.id === id);
-    if (!m || !isPlayable(m)) throw new Error('Deze wedstrijd kan nog niet gespeeld worden.');
+    if (!m || !isPlayable(m)) throw new Error(L('Deze wedstrijd kan nog niet gespeeld worden.'));
     const ce = canEdit(s, m); if (!ce.ok) throw new Error(ce.error);
     const bo = m.bo || s.settings.bestOf, need = Math.ceil(bo / 2);
     let r;
@@ -707,8 +971,8 @@ const TT = (() => {
   // Naam van de groep waarin m speelt, bv. "Kwartfinale", "Plaats 9-16", "Om plaats 3"
   function groupLabel(m) {
     const off = m.offset || 0, a = m.gstart + off, b = Math.max(m.gstart, Math.min(m.gstart + m.gsize - 1, m.n || 1e9)) + off;
-    if (m.gstart === 1 && m.kind === 'main') return m.gsize === 2 ? 'Finale' : m.gsize === 4 ? 'Halve finale' : m.gsize === 8 ? 'Kwartfinale' : `1/${m.gsize / 2} finale`;
-    return m.gsize === 2 || a === b ? `Om plaats ${a}` : `Plaats ${a}-${b}`;
+    if (m.gstart === 1 && m.kind === 'main') return m.gsize === 2 ? L('Finale') : m.gsize === 4 ? L('Halve finale') : m.gsize === 8 ? L('Kwartfinale') : L('1/{0} finale', m.gsize / 2);
+    return m.gsize === 2 || a === b ? L('Om plaats {0}', a) : L('Plaats {0}-{1}', a, b);
   }
   // Eindplaatsen tot nu toe: {positie: pid} (vrije plaatsen weggelaten)
   function placements(s, kind) {
@@ -776,13 +1040,45 @@ function mutate(fn) {
    ========================================================================= */
 const $app = document.getElementById('app'), $modal = document.getElementById('modal');
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ORD = ['', '1ste', '2de', '3de', '4de', '5de', '6de'];
+const ORD = { nl: ['', '1ste', '2de', '3de', '4de', '5de', '6de'], fr: ['', '1er', '2e', '3e', '4e', '5e', '6e'], en: ['', '1st', '2nd', '3rd', '4th', '5th', '6th'] };
+const ord = n => ORD[LANG][n] || L('{0}de', n);
 const pname = id => {
-  if (id === 'BYE') return 'vrij';
-  if (TT.isToken(id)) { const k = id.lastIndexOf(':'); return `${ORD[+id.slice(k + 1)] || id.slice(k + 1) + 'de'} poule ${id.slice(1, k)}`; }
+  if (id === 'BYE') return L('vrij');
+  if (TT.isToken(id)) { const k = id.lastIndexOf(':'); return L('{0} poule {1}', ord(+id.slice(k + 1)), id.slice(1, k)); }
   return state.players.find(p => p.id === id)?.name ?? '';
 };
-const prank = id => state.players.find(p => p.id === id)?.rank || '';
+const rk = r => r === 'NG' && LANG !== 'nl' ? 'NC' : r;     // NG (niet gerangschikt) = NC (non classé)
+const prank = id => rk(state.players.find(p => p.id === id)?.rank || '');
+const LOCALE = () => ({ nl: 'nl-BE', fr: 'fr-BE', en: 'en-GB' })[LANG];
+// Standaardnaam van het tornooi volgt de taal; een zelfgekozen naam blijft zoals hij is.
+const DEFAULT_NAMES = ['Clubkampioenschap', 'Championnat du club', 'Club championship'];
+const tName = n => !n || DEFAULT_NAMES.includes(n) ? L('Clubkampioenschap') : n;
+// Taalkeuze: ?lang=fr in het adres, anders de onthouden keuze, anders Nederlands.
+const LKEY = 'tt-lang';
+function loadLang() {
+  let q = '';
+  try { q = (new URLSearchParams(location.search).get('lang') || '').toLowerCase(); } catch (e) {}
+  if (LANGS[q]) { try { localStorage.setItem(LKEY, q); } catch (e) {} return q; }
+  try { const v = localStorage.getItem(LKEY); if (LANGS[v]) return v; } catch (e) {}
+  return 'nl';
+}
+function setLang(l) {
+  if (!LANGS[l] || l === LANG) return;
+  LANG = l;
+  try { localStorage.setItem(LKEY, l); } catch (e) {}
+  render();
+}
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = L(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = L(el.dataset.i18nTitle); });
+  const sel = document.getElementById('hdrLang'); if (sel) sel.value = LANG;
+}
+const langSelect = () => `<label>${L('Taal')} <select data-lang>${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
+// Maker van de app: MKict (https://mkict.be). Logo mkict-logo.png (op het donkere tv-scherm mkict-logo-wit.png); verdwijnt als het niet laadt.
+const MAKER_URL = 'https://mkict.be';
+const footerHtml = () => `<footer class="credit"><a href="${MAKER_URL}" target="_blank" rel="noopener"><img src="${isDisplay() ? 'mkict-logo-wit.png' : 'mkict-logo.png'}" alt="MKict" onerror="this.remove()"><span>${L('Gemaakt door {0}', '<b>MKict</b>')}<span class="url"> · mkict.be</span></span></a></footer>`;
+const printFooter = () => `<div class="slip-credit"><img src="mkict-logo.png" alt="" onerror="this.remove()">${L('Gemaakt door {0}', 'MKict')} · mkict.be</div>`;
 let tab = 'spelers', drawSel = null;
 const isDisplay = () => location.hash === '#scherm';
 
@@ -794,26 +1090,27 @@ function toast(msg, bad) {
 }
 
 function tabsFor() {
-  const t = [['spelers', 'Spelers']];
-  if (state.stage !== 'setup') t.push(['poules', 'Poules']);
-  if (state.stage === 'poules' || state.stage === 'knockout') t.push(['wedstrijden', 'Wedstrijden & tafels']);
-  if (state.stage === 'poules' || state.stage === 'knockout') t.push(['tabel', 'Eindrondes']);
-  t.push(['backup', 'Instellingen & back-up']);
+  const t = [['spelers', L('Spelers')]];
+  if (state.stage !== 'setup') t.push(['poules', L('Poules')]);
+  if (state.stage === 'poules' || state.stage === 'knockout') t.push(['wedstrijden', L('Wedstrijden & tafels')]);
+  if (state.stage === 'poules' || state.stage === 'knockout') t.push(['tabel', L('Eindrondes')]);
+  t.push(['backup', L('Instellingen & back-up')]);
   return t;
 }
 
 function render() {
   if (isDisplay()) { document.body.classList.add('display'); renderDisplay(); return; }
   document.body.classList.remove('display');
-  document.getElementById('title').textContent = state.name || 'Clubkampioenschap';
-  document.title = state.name || 'Clubkampioenschap';
+  applyLang();
+  document.getElementById('title').textContent = tName(state.name);
+  document.title = tName(state.name);
   const tabs = tabsFor();
   if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
   document.getElementById('nav').innerHTML = tabs.map(([k, l]) => `<button data-action="tab" data-tab="${k}" class="${k === tab ? 'active' : ''}">${l}</button>`).join('');
   document.getElementById('undoBtn').disabled = !history.length;
-  let html = storageOk ? '' : '<div class="notice">⚠️ Opslaan in de browser lukt niet. Download regelmatig een back-up (Instellingen & back-up).</div>';
+  let html = storageOk ? '' : `<div class="notice">⚠️ ${L('Opslaan in de browser lukt niet. Download regelmatig een back-up (Instellingen & back-up).')}</div>`;
   html += ({ spelers: viewPlayers, poules: viewPoules, wedstrijden: viewMatches, tabel: viewKnockout, backup: viewBackup })[tab]();
-  $app.innerHTML = html;
+  $app.innerHTML = html + footerHtml();
 }
 
 /* ---------- Spelers ---------- */
@@ -899,7 +1196,7 @@ const xmlEsc = t => String(t).replace(/[<>&'"]/g, c => `&#${c.charCodeAt(0)};`);
 const TABT_NS = 'http://api.frenoy.net/TabTAPI', VTTL_BASES = [VTTL_URL, VTTL_URL + '0.7/'];
 const xmlAll = (xml, n) => [...xml.getElementsByTagName('*')].filter(e => e.localName === n);
 // tijdslimiet zonder AbortSignal (die kan niet in elk venster doorgegeven worden)
-const timed = (p, ms = 15000) => { const late = new Promise((_, no) => setTimeout(() => no(new Error('geen antwoord binnen 15 seconden')), ms)); late.catch(() => {}); return Promise.race([p, late]); };
+const timed = (p, ms = 15000) => { const late = new Promise((_, no) => setTimeout(() => no(new Error(L('geen antwoord binnen 15 seconden'))), ms)); late.catch(() => {}); return Promise.race([p, late]); };
 // Leest de WSDL van VTTL: adres, namespace en de juiste naam van elk verzoek.
 async function tabtWsdl(base) {
   const r = await timed(fetch(base + '?wsdl'), 8000), xml = new DOMParser().parseFromString(await timed(r.text(), 8000), 'text/xml');
@@ -924,8 +1221,8 @@ async function tabtCall(c, method, fields) {
       const r = await timed(fetch(c.url, { method: 'POST', headers: { 'Content-Type': ct }, body }));
       const xml = new DOMParser().parseFromString(await timed(r.text()), 'text/xml');
       const fault = xmlAll(xml, 'faultstring')[0];
-      if (fault) throw Object.assign(new Error('VTTL meldt: ' + fault.textContent), { fault: true, unknown: /not present|not found|Procedure|Function/i.test(fault.textContent) });
-      if (!r.ok || xml.getElementsByTagName('parsererror').length) throw new Error('onverwacht antwoord van VTTL (' + r.status + ')');
+      if (fault) throw Object.assign(new Error(L('VTTL meldt: ') + fault.textContent), { fault: true, unknown: /not present|not found|Procedure|Function/i.test(fault.textContent) });
+      if (!r.ok || xml.getElementsByTagName('parsererror').length) throw new Error(L('onverwacht antwoord van VTTL ({0})', r.status));
       return xml;
     } catch (e) { last = e; if (e.fault) break; }
   }
@@ -948,7 +1245,7 @@ async function tabt(method, fields) {
     catch (e) { if (!last || e.fault) last = e; if (e.fault && !e.unknown) throw e; }
   }
   const w = cands.filter(c => c.ops).map(c => `${c.url} ${c.ns} ${c.ops[method] || '?'}`).join(' | ');
-  if (last) last.message += ` [WSDL: ${w || 'niet gevonden'}]`;
+  if (last) last.message += ` [WSDL: ${w || L('niet gevonden')}]`;
   throw last;
 }
 const xmlNames = xml => [...new Set([...xml.getElementsByTagName('*')].map(e => e.localName))].slice(0, 14).join(', ');
@@ -960,22 +1257,22 @@ const vttlRank = r => { r = String(r || '').toUpperCase(); return r[0] === 'A' ?
 async function vttlRun(what, fn) {
   vttlBusy = what; vttlErr = ''; render();
   try { await fn(); }
-  catch (e) { vttlErr = `${what} lukt niet (${e.message || 'geen verbinding'}). ${e.fault || /herkend/.test(e.message || '') ? 'VTTL antwoordt, maar anders dan verwacht.' : 'Controleer het internet.'} De lijst van de eigen club en "Meerdere spelers tegelijk plakken" blijven werken.`; }
+  catch (e) { vttlErr = L('{0} lukt niet ({1}). {2} De lijst van de eigen club en "Meerdere spelers tegelijk plakken" blijven werken.', what, e.message || L('geen verbinding'), e.fault || e.unrecognised ? L('VTTL antwoordt, maar anders dan verwacht.') : L('Controleer het internet.')); }
   vttlBusy = ''; render();
 }
 const vttlFetchClubs = async () => {
   const xml = await tabt('GetClubs', {}), rows = xmlRows(xml, 'ClubEntries').filter(c => c.UniqueIndex && c.Name);
-  if (!rows.length) throw new Error('geen clubs herkend in het antwoord: ' + xmlNames(xml));
+  if (!rows.length) throw Object.assign(new Error(L('geen clubs herkend in het antwoord: ') + xmlNames(xml)), { unrecognised: true });
   vttlClubs = rows.map(c => ({ code: c.UniqueIndex, name: c.LongName || c.Name })).sort((a, b) => a.name.localeCompare(b.name, 'nl'));
   try { localStorage.setItem(CKEY, JSON.stringify(vttlClubs)); } catch (e) {}
 };
-const vttlLoadClubs = () => vttlRun('Clubs ophalen bij VTTL', vttlFetchClubs);
+const vttlLoadClubs = () => vttlRun(L('Clubs ophalen bij VTTL'), vttlFetchClubs);
 // Bij het openen stil de clublijst ophalen (als er internet is), zodat de keuzelijst meteen gevuld is.
 function vttlWarm() { if (!vttlClubs && navigator.onLine !== false && !isDisplay()) vttlFetchClubs().then(() => { if (!vttlBusy && !document.querySelector('.modal-bg') && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) render(); }, () => {}); }
-const vttlLoadMembers = code => vttlRun('Leden ophalen bij VTTL', async () => {
-  code = String(code || '').trim(); if (!code) throw new Error('kies eerst een club');
+const vttlLoadMembers = code => vttlRun(L('Leden ophalen bij VTTL'), async () => {
+  code = String(code || '').trim(); if (!code) throw new Error(L('kies eerst een club'));
   const xml = await tabt('GetMembers', { Club: code }), rows = xmlRows(xml, 'MemberEntries').filter(m => m.LastName || m.FirstName);
-  if (!rows.length) throw new Error('geen leden herkend voor club ' + code + ': ' + xmlNames(xml));
+  if (!rows.length) throw Object.assign(new Error(L('geen leden herkend voor club {0}: ', code) + xmlNames(xml)), { unrecognised: true });
   const members = sortMembers(rows.map(m => ({ name: cleanName(`${niceName(m.LastName || '')} ${niceName(m.FirstName || '')}`), rank: vttlRank(m.Ranking) })));
   vttl = { code, name: vttlClubs?.find(c => c.code === code)?.name || code, members, at: Date.now() };
 });
@@ -987,22 +1284,22 @@ function clubOptions() {
   const hit = (vttlClubs || []).filter(c => c.code === cur || !q || nameKey(c.name + ' ' + c.code).includes(q));
   return `<option value="" ${cur ? '' : 'selected'}>TTC Sterke Stut</option>
     ${vttl && !(vttlClubs || []).some(c => c.code === cur) ? `<option value="${esc(cur)}" selected>${esc(vttl.name)}</option>` : ''}
-    ${vttlClubs ? hit.map(c => `<option value="${esc(c.code)}" ${c.code === cur ? 'selected' : ''}>${esc(c.name)} (${esc(c.code)})</option>`).join('') + (q && hit.length < (cur ? 2 : 1) ? '<option disabled>Geen club gevonden</option>' : '')
-      : '<option value="__load">Andere club… (lijst ophalen bij VTTL)</option>'}`;
+    ${vttlClubs ? hit.map(c => `<option value="${esc(c.code)}" ${c.code === cur ? 'selected' : ''}>${esc(c.name)} (${esc(c.code)})</option>`).join('') + (q && hit.length < (cur ? 2 : 1) ? `<option disabled>${L('Geen club gevonden')}</option>` : '')
+      : `<option value="__load">${L('Andere club… (lijst ophalen bij VTTL)')}</option>`}`;
 }
 function clubPicker() {
   const list = pickList(), ranks = [...new Set(list.map(m => m.rank || 'NG'))];
-  const pick = `<div class="row" style="margin-bottom:10px"><label><b>Club</b> <select data-vttlpick ${vttlBusy ? 'disabled' : ''} style="max-width:340px">${clubOptions()}</select></label>
-      ${vttlClubs ? `<input type="search" data-clubfind value="${esc(clubFind)}" placeholder="Zoek club (deel van de naam)" style="width:230px" autocomplete="off">` : ''}
-      ${vttlBusy ? `<span class="hint">⏳ ${esc(vttlBusy)}…</span>` : vttl ? `<span class="hint">Leden en klassementen van VTTL, opgehaald op ${new Date(vttl.at).toLocaleDateString('nl-BE')}.</span>` : ''}</div>
+  const pick = `<div class="row" style="margin-bottom:10px"><label><b>${L('Club')}</b> <select data-vttlpick ${vttlBusy ? 'disabled' : ''} style="max-width:340px">${clubOptions()}</select></label>
+      ${vttlClubs ? `<input type="search" data-clubfind value="${esc(clubFind)}" placeholder="${L('Zoek club (deel van de naam)')}" style="width:230px" autocomplete="off">` : ''}
+      ${vttlBusy ? `<span class="hint">⏳ ${esc(vttlBusy)}…</span>` : vttl ? `<span class="hint">${L('Leden en klassementen van VTTL, opgehaald op {0}.', new Date(vttl.at).toLocaleDateString(LOCALE()))}</span>` : ''}</div>
       ${vttlErr ? `<p class="err">${esc(vttlErr)}</p>` : ''}`;
-  return `<div class="card"><h2>Clubleden kiezen <span class="pill">${esc(vttl ? vttl.name : 'TTC Sterke Stut')} · ${list.length} leden</span></h2>
+  return `<div class="card"><h2>${L('Clubleden kiezen')} <span class="pill">${esc(vttl ? vttl.name : 'TTC Sterke Stut')} · ${L('{0} leden', list.length)}</span></h2>
     ${pick}<form data-form="club">
-      <div class="row" style="margin-bottom:8px"><input type="search" data-clubq placeholder="Zoek op naam" style="width:200px" autocomplete="off">
-        <select data-clubrank><option value="">Alle klassementen</option>${['A', 'B', 'C', 'D', 'E'].filter(c => ranks.some(r => r[0] === c)).map(c => `<option value="${c}">${c}-spelers</option>`).join('')}${ranks.filter(r => r !== 'A').map(r => `<option value="${r}">${r}</option>`).join('')}</select>
-        <button type="button" class="sm" data-action="club-all">Alle getoonde aanvinken</button><button type="button" class="sm" data-action="club-none">Niets aanvinken</button><button type="button" class="sm" data-action="club-random" title="Om te testen: vinkt 25 willekeurige leden aan">🎲 25 willekeurige (test)</button></div>
-      <div class="club-list">${list.map((m, i) => { const inl = nameTaken(m.name); return `<label class="${inl ? 'in' : ''}" data-rank="${m.rank || 'NG'}" data-name="${esc(nameKey(m.name))}"><input type="checkbox" name="m" value="${i}" ${inl ? 'checked disabled' : ''}> ${esc(m.name)} <span class="small muted">${m.rank || 'NG'}</span></label>`; }).join('')}</div>
-      <div class="row" style="margin-top:10px"><button class="primary">Aangevinkte spelers toevoegen</button><span class="hint">Grijs = staat al in de lijst. Klassement fout? Pas het hieronder aan in de spelerslijst.</span></div>
+      <div class="row" style="margin-bottom:8px"><input type="search" data-clubq placeholder="${L('Zoek op naam')}" style="width:200px" autocomplete="off">
+        <select data-clubrank><option value="">${L('Alle klassementen')}</option>${['A', 'B', 'C', 'D', 'E'].filter(c => ranks.some(r => r[0] === c)).map(c => `<option value="${c}">${L('{0}-spelers', c)}</option>`).join('')}${ranks.filter(r => r !== 'A').map(r => `<option value="${r}">${rk(r)}</option>`).join('')}</select>
+        <button type="button" class="sm" data-action="club-all">${L('Alle getoonde aanvinken')}</button><button type="button" class="sm" data-action="club-none">${L('Niets aanvinken')}</button><button type="button" class="sm" data-action="club-random" title="${L('Om te testen: vinkt 25 willekeurige leden aan')}">🎲 ${L('25 willekeurige (test)')}</button></div>
+      <div class="club-list">${list.map((m, i) => { const inl = nameTaken(m.name); return `<label class="${inl ? 'in' : ''}" data-rank="${m.rank || 'NG'}" data-name="${esc(nameKey(m.name))}"><input type="checkbox" name="m" value="${i}" ${inl ? 'checked disabled' : ''}> ${esc(m.name)} <span class="small muted">${rk(m.rank || 'NG')}</span></label>`; }).join('')}</div>
+      <div class="row" style="margin-top:10px"><button class="primary">${L('Aangevinkte spelers toevoegen')}</button><span class="hint">${L('Grijs = staat al in de lijst. Klassement fout? Pas het hieronder aan in de spelerslijst.')}</span></div>
     </form></div>`;
 }
 function clubFilter() {
@@ -1014,56 +1311,56 @@ var logoOk = true, photoOk = true, photoLocal = true;   // clubfoto.jpg naast de
 const CLUB_LOGO = 'logo.png';   // logo van TTC Sterke Stut (wit op transparant) op de clubkleur gezet
 const CLUB_PHOTO = 'https://www.sterkestut.be/wp-content/uploads/2024/09/2024-09-11-oosterzele-%C2%A9DDL-Tafeltennisclub-TTC-Sterke-Stut-Oosterzele-22-1024x591.jpg';
 function rankSelect(name, val) {
-  return `<select name="${name}"><option value="">–</option>${TT.RANKS.map(r => `<option ${r === val ? 'selected' : ''}>${r}</option>`).join('')}</select>`;
+  return `<select name="${name}"><option value="">–</option>${TT.RANKS.map(r => `<option value="${r}" ${r === val ? 'selected' : ''}>${rk(r)}</option>`).join('')}</select>`;
 }
 function viewPlayers() {
   const s = state, setup = s.stage === 'setup';
   const active = s.players.filter(p => !p.withdrawn).length;
-  let h = setup && photoOk ? `<div class="hero noprint"><img class="photo" src="${photoLocal ? 'clubfoto.jpg' : CLUB_PHOTO}" alt="TTC Sterke Stut" onerror="if(photoLocal){photoLocal=false;this.src=CLUB_PHOTO}else{photoOk=false;this.parentNode.remove()}">${logoOk ? `<img class="logo" src="${CLUB_LOGO}" alt="" onerror="logoOk=false;this.remove()">` : ''}<div>${esc(s.name || 'Clubkampioenschap')} <a href="https://www.sterkestut.be/" target="_blank" rel="noopener">TTC Sterke Stut · sterkestut.be</a></div></div>` : '';
+  let h = setup && photoOk ? `<div class="hero noprint"><img class="photo" src="${photoLocal ? 'clubfoto.jpg' : CLUB_PHOTO}" alt="TTC Sterke Stut" onerror="if(photoLocal){photoLocal=false;this.src=CLUB_PHOTO}else{photoOk=false;this.parentNode.remove()}">${logoOk ? `<img class="logo" src="${CLUB_LOGO}" alt="" onerror="logoOk=false;this.remove()">` : ''}<div>${esc(tName(s.name))} <a href="https://www.sterkestut.be/" target="_blank" rel="noopener">TTC Sterke Stut · sterkestut.be</a></div></div>` : '';
   if (s.stage === 'poules') {
     const min = Math.min(...s.poules.map(p => p.players.length)), def = s.poules.find(p => p.players.length === min).id;
-    h += `<div class="card" id="laatkomer" style="border-color:var(--accent)"><h2>＋ Laatkomer toevoegen</h2><form data-form="late" class="row"><input name="name" placeholder="Familienaam Voornaam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')}
-      <select name="poule">${s.poules.map(p => `<option value="${p.id}" ${p.id === def ? 'selected' : ''}>Poule ${p.id} (${p.players.length} spelers)</option>`).join('')}</select>
-      <button class="primary">Toevoegen</button></form><p class="hint">De speler komt in de gekozen poule en krijgt wedstrijden tegen iedereen uit die poule. Kies best een poule van 3. Dit kan tot je de eindrondes aanmaakt.</p></div>`;
+    h += `<div class="card" id="laatkomer" style="border-color:var(--accent)"><h2>＋ ${L('Laatkomer toevoegen')}</h2><form data-form="late" class="row"><input name="name" placeholder="${L('Familienaam Voornaam')}" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')}
+      <select name="poule">${s.poules.map(p => `<option value="${p.id}" ${p.id === def ? 'selected' : ''}>${L('Poule {0} ({1} spelers)', p.id, p.players.length)}</option>`).join('')}</select>
+      <button class="primary">${L('Toevoegen')}</button></form><p class="hint">${L('De speler komt in de gekozen poule en krijgt wedstrijden tegen iedereen uit die poule. Kies best een poule van 3. Dit kan tot je de eindrondes aanmaakt.')}</p></div>`;
   } else if (s.stage === 'draw') {
-    h += `<div class="notice">De loting is gemaakt maar de poules zijn nog niet gestart. Wil je nog iemand toevoegen? Ga naar <b>Poules</b> en klik op "← Terug naar spelers". Zodra de poules gestart zijn, verschijnt hier "Laatkomer toevoegen".</div>`;
+    h += `<div class="notice">${L('De loting is gemaakt maar de poules zijn nog niet gestart. Wil je nog iemand toevoegen? Ga naar <b>Poules</b> en klik op "← Terug naar spelers". Zodra de poules gestart zijn, verschijnt hier "Laatkomer toevoegen".')}</div>`;
   } else if (s.stage === 'knockout') {
-    h += `<div class="notice">De eindrondes zijn aangemaakt. Een laatkomer toevoegen kan nu niet meer.</div>`;
+    h += `<div class="notice">${L('De eindrondes zijn aangemaakt. Een laatkomer toevoegen kan nu niet meer.')}</div>`;
   }
   if (setup) {
-    h += `<div class="card"><h2>Instellingen</h2><div class="row">
-      <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label>
-      <label>Wedstrijden <select data-set="bestOf">${[3, 5, 7].map(b => `<option value="${b}" ${s.settings.bestOf === b ? 'selected' : ''}>${(b + 1) / 2} winnende sets</option>`).join('')}</select></label>
-      <label>Vanaf halve finale <select data-set="bestOfFinals">${[3, 5, 7].map(b => `<option value="${b}" ${s.settings.bestOfFinals === b ? 'selected' : ''}>${(b + 1) / 2} winnende sets</option>`).join('')}</select></label>
-      <label>Tafels <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
-      <label>Poulegrootte <select data-set="pouleSize">${[3, 4, 5, 6].map(b => `<option value="${b}" ${s.settings.pouleSize === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
-      <label>Door naar hoofdtabel <select data-set="qualifiers">${[1, 2, 3].map(b => `<option value="${b}" ${s.settings.qualifiers === b ? 'selected' : ''}>top ${b}</option>`).join('')}</select></label>
-      <label><input type="checkbox" data-set="consolation" ${s.settings.consolation ? 'checked' : ''}> Troosttabel voor de anderen</label>
+    h += `<div class="card"><h2>${L('Instellingen')}</h2><div class="row">
+      <label>${L('Naam')} <input data-set="name" value="${esc(tName(s.name))}" style="width:260px"></label>
+      <label>${L('Wedstrijden')} <select data-set="bestOf">${[3, 5, 7].map(b => `<option value="${b}" ${s.settings.bestOf === b ? 'selected' : ''}>${L('{0} winnende sets', (b + 1) / 2)}</option>`).join('')}</select></label>
+      <label>${L('Vanaf halve finale')} <select data-set="bestOfFinals">${[3, 5, 7].map(b => `<option value="${b}" ${s.settings.bestOfFinals === b ? 'selected' : ''}>${L('{0} winnende sets', (b + 1) / 2)}</option>`).join('')}</select></label>
+      <label>${L('Tafels')} <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
+      <label>${L('Poulegrootte')} <select data-set="pouleSize">${[3, 4, 5, 6].map(b => `<option value="${b}" ${s.settings.pouleSize === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
+      <label>${L('Door naar hoofdtabel')} <select data-set="qualifiers">${[1, 2, 3].map(b => `<option value="${b}" ${s.settings.qualifiers === b ? 'selected' : ''}>${L('top {0}', b)}</option>`).join('')}</select></label>
+      <label><input type="checkbox" data-set="consolation" ${s.settings.consolation ? 'checked' : ''}> ${L('Troosttabel voor de anderen')}</label>
       ${hcSelect(s)}
     </div></div>`;
     h += clubPicker();
-    h += `<div class="card"><h2>Spelers toevoegen</h2>
-      <form data-form="add-player" class="row"><input name="name" placeholder="Familienaam Voornaam" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">Toevoegen</button></form>
-      <p class="hint">Tik de naam als <b>Familienaam Voornaam</b> (bv. De Moerloose Wim), zoals in de ledenlijst. Zo klopt het alfabetisch sorteren op familienaam bij de loting.</p>
-      <details style="margin-top:10px"><summary>Meerdere spelers tegelijk plakken</summary>
-        <p class="hint">Eén speler per lijn, als Familienaam Voornaam. Klassement mag erachter, gescheiden door ; of tab of komma. Bv. <code>Peeters Jan; C4</code></p>
-        <form data-form="bulk"><textarea name="bulk" placeholder="Peeters Jan; C4&#10;Janssens An; D2&#10;Piet"></textarea><div class="row" style="margin-top:6px"><button class="primary">Toevoegen</button></div></form>
+    h += `<div class="card"><h2>${L('Spelers toevoegen')}</h2>
+      <form data-form="add-player" class="row"><input name="name" placeholder="${L('Familienaam Voornaam')}" required style="width:240px" autocomplete="off"> ${rankSelect('rank', '')} <button class="primary">${L('Toevoegen')}</button></form>
+      <p class="hint">${L('Tik de naam als <b>Familienaam Voornaam</b> (bv. De Moerloose Wim), zoals in de ledenlijst. Zo klopt het alfabetisch sorteren op familienaam bij de loting.')}</p>
+      <details style="margin-top:10px"><summary>${L('Meerdere spelers tegelijk plakken')}</summary>
+        <p class="hint">${L('Eén speler per lijn, als Familienaam Voornaam. Klassement mag erachter, gescheiden door ; of tab of komma. Bv. <code>Peeters Jan; C4</code>')}</p>
+        <form data-form="bulk"><textarea name="bulk" placeholder="Peeters Jan; C4&#10;Janssens An; D2&#10;Piet"></textarea><div class="row" style="margin-top:6px"><button class="primary">${L('Toevoegen')}</button></div></form>
       </details></div>`;
   }
   const sizes = TT.pouleSizes(active, s.settings.pouleSize);
-  h += `<div class="card"><h2>Deelnemers (${active})</h2>`;
-  if (setup) h += `<p class="muted small">${active >= 3 ? `Dit geeft ${sizes.length} poule${sizes.length > 1 ? 's' : ''}: ${sizes.join(', ')} spelers.` : 'Minstens 3 spelers nodig.'}</p>`;
-  h += `<table><tr><th>#</th><th>Naam</th><th>Klassement</th>${s.stage !== 'setup' ? '<th>Poule</th>' : ''}<th></th></tr>`;
+  h += `<div class="card"><h2>${L('Deelnemers ({0})', active)}</h2>`;
+  if (setup) h += `<p class="muted small">${active >= 3 ? (sizes.length > 1 ? L('Dit geeft {0} poules: {1} spelers.', sizes.length, sizes.join(', ')) : L('Dit geeft 1 poule: {0} spelers.', sizes.join(', '))) : L('Minstens 3 spelers nodig.')}</p>`;
+  h += `<table><tr><th>#</th><th>${L('Naam')}</th><th>${L('Klassement')}</th>${s.stage !== 'setup' ? `<th>${L('Poule')}</th>` : ''}<th></th></tr>`;
   s.players.forEach((p, i) => {
     const poule = s.poules.find(x => x.players.includes(p.id))?.id || '';
-    h += `<tr><td class="muted">${i + 1}</td><td>${setup ? `<input data-pedit="name" data-id="${p.id}" value="${esc(p.name)}">` : esc(p.name)}${p.withdrawn ? ' <span class="pill">afgemeld</span>' : ''}</td>
-      <td>${setup ? rankSelect('r', p.rank).replace('<select', `<select data-pedit="rank" data-id="${p.id}"`) : esc(p.rank || '–')}</td>
+    h += `<tr><td class="muted">${i + 1}</td><td>${setup ? `<input data-pedit="name" data-id="${p.id}" value="${esc(p.name)}">` : esc(p.name)}${p.withdrawn ? ` <span class="pill">${L('afgemeld')}</span>` : ''}</td>
+      <td>${setup ? rankSelect('r', p.rank).replace('<select', `<select data-pedit="rank" data-id="${p.id}"`) : esc(rk(p.rank) || '–')}</td>
       ${s.stage !== 'setup' ? `<td>${poule}</td>` : ''}
-      <td style="text-align:right">${setup ? `<button class="sm danger" data-action="del-player" data-id="${p.id}">Verwijderen</button>` :
-        (s.stage === 'poules' && !p.withdrawn ? `<button class="sm danger" data-action="withdraw" data-id="${p.id}">Afmelden</button>` : '')}</td></tr>`;
+      <td style="text-align:right">${setup ? `<button class="sm danger" data-action="del-player" data-id="${p.id}">${L('Verwijderen')}</button>` :
+        (s.stage === 'poules' && !p.withdrawn ? `<button class="sm danger" data-action="withdraw" data-id="${p.id}">${L('Afmelden')}</button>` : '')}</td></tr>`;
   });
   h += `</table>`;
-  if (setup) h += `<div class="row" style="margin-top:12px"><button class="primary" data-action="draw" ${active < 3 ? 'disabled' : ''}>Loting maken →</button>${tieSelect()}</div>`;
+  if (setup) h += `<div class="row" style="margin-top:12px"><button class="primary" data-action="draw" ${active < 3 ? 'disabled' : ''}>${L('Loting maken')} →</button>${tieSelect()}</div>`;
   h += `</div>`;
   return h;
 }
@@ -1078,10 +1375,10 @@ function standingTable(pid, compact) {
   const st = TT.pouleStandings(state, pid), q = state.settings.qualifiers;
   const rows = compact ? st.rows : st.rows.slice().sort((a, b) => a.nr - b.nr);
   const started = st.rows.some(r => r.played);
-  let h = `<table class="${compact ? '' : 'pb'}"><tr><th>${compact ? '#' : 'Nr'}</th><th>Speler</th><th class="num" title="Gespeeld">${compact ? 'Gesp' : 'G'}</th><th class="num">W</th><th class="num">V</th>${compact ? '' : '<th class="num">Ptn</th>'}<th class="num">Sets</th>${compact ? '' : '<th class="num">Punten</th><th class="num" title="Plaats in de poule">Pl.</th>'}</tr>`;
+  let h = `<table class="${compact ? '' : 'pb'}"><tr><th>${compact ? '#' : L('Nr')}</th><th>${L('Speler')}</th><th class="num" title="${L('Gespeeld')}">${compact ? L('Gesp') : L('G')}</th><th class="num" title="${L('Gewonnen')}">${L('W')}</th><th class="num" title="${L('Verloren')}">${L('V')}</th>${compact ? '' : `<th class="num" title="${L('Matchpunten')}">${L('Ptn')}</th>`}<th class="num">${L('Sets')}</th>${compact ? '' : `<th class="num">${L('Punten')}</th><th class="num" title="${L('Plaats in de poule')}">${L('Pl.')}</th>`}</tr>`;
   rows.forEach(r => {
     const wd = state.players.find(p => p.id === r.id)?.withdrawn;
-    h += `<tr class="${started && r.pos <= q ? 'q' : ''}"><td>${compact ? r.pos : `<b>${r.nr}</b>`}</td><td>${esc(pname(r.id))} <span class="muted small">${esc(prank(r.id))}</span>${wd ? ' <span class="pill">afgemeld</span>' : ''}</td>
+    h += `<tr class="${started && r.pos <= q ? 'q' : ''}"><td>${compact ? r.pos : `<b>${r.nr}</b>`}</td><td>${esc(pname(r.id))} <span class="muted small">${esc(prank(r.id))}</span>${wd ? ` <span class="pill">${L('afgemeld')}</span>` : ''}</td>
       <td class="num">${r.played}</td><td class="num">${r.won}</td><td class="num">${r.lost}</td>${compact ? '' : `<td class="num">${r.mp}</td>`}
       <td class="num">${r.sw}-${r.sl}</td>${compact ? '' : `<td class="num">${r.pw}-${r.pl}</td><td class="num"><b>${started ? r.pos : ''}</b></td>`}</tr>`;
   });
@@ -1090,32 +1387,32 @@ function standingTable(pid, compact) {
 function matchLine(m, opts = {}) {
   const done = TT.isDone(m);
   const n1 = esc(pname(m.p1)), n2 = esc(pname(m.p2));
-  const sc = done ? `${m.score[0]}-${m.score[1]}` : (m.table ? `<span class="pill play">tafel ${m.table}</span>` : '');
-  const detail = done ? (m.wo ? `forfait` : m.sets.map(x => x.join('-')).join(', ')) : '';
+  const sc = done ? `${m.score[0]}-${m.score[1]}` : (m.table ? `<span class="pill play">${L('tafel {0}', m.table)}</span>` : '');
+  const detail = done ? (m.wo ? L('forfait') : m.sets.map(x => x.join('-')).join(', ')) : '';
   return `<div class="match ${done ? 'done' : ''}">
     <div class="names">${opts.nrs ? `<b class="mnr">${matchNrs(m)}</b> ` : ''}<span class="${done && m.winner === m.p1 ? 'w' : ''}">${n1}</span> – <span class="${done && m.winner === m.p2 ? 'w' : ''}">${n2}</span>
       ${detail ? `<div class="muted small">${esc(detail)}</div>` : ''}${opts.label ? `<div class="muted small">${opts.label}</div>` : ''}</div>
     <div class="score">${sc}</div>
-    ${opts.noBtn ? '' : `<button class="sm noprint" data-action="score" data-id="${m.id}">${done ? 'Wijzig' : 'Uitslag'}</button>`}</div>`;
+    ${opts.noBtn ? '' : `<button class="sm noprint" data-action="score" data-id="${m.id}">${done ? L('Wijzig') : L('Uitslag')}</button>`}</div>`;
 }
-const tieSelect = () => `<label>Bij gelijk klassement <select data-set="drawTie">${[['az', 'alfabetisch'], ['za', 'omgekeerd alfabetisch'], ['random', 'willekeurig'], ['list', 'volgorde van de spelerslijst']].map(([v, t]) => `<option value="${v}" ${state.settings.drawTie === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+const tieSelect = () => `<label>${L('Bij gelijk klassement')} <select data-set="drawTie">${[['az', L('alfabetisch')], ['za', L('omgekeerd alfabetisch')], ['random', L('willekeurig')], ['list', L('volgorde van de spelerslijst')]].map(([v, t]) => `<option value="${v}" ${state.settings.drawTie === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
 function viewPoules() {
   const s = state;
   if (s.stage === 'draw') {
-    let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="back-setup">← Terug naar spelers</button><button data-action="redraw-snake">Slangsysteem (standaard)</button><button data-action="redraw">Loten binnen de potten</button><button class="primary" data-action="start-poules">Poules starten →</button></div>
+    let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="back-setup">← ${L('Terug naar spelers')}</button><button data-action="redraw-snake">${L('Slangsysteem (standaard)')}</button><button data-action="redraw">${L('Loten binnen de potten')}</button><button class="primary" data-action="start-poules">${L('Poules starten')} →</button></div>
       <div class="row noprint" style="margin-bottom:10px">${tieSelect()}</div>
-      <p class="hint noprint">De nummers 1-4 bepalen de wedstrijden (1-4, 2-3, 1-3, 2-4, 1-2, 3-4). Klik op twee spelers om ze van plaats te wisselen, ook binnen dezelfde poule.</p><div class="grid">`;
+      <p class="hint noprint">${L('De nummers 1-4 bepalen de wedstrijden (1-4, 2-3, 1-3, 2-4, 1-2, 3-4). Klik op twee spelers om ze van plaats te wisselen, ook binnen dezelfde poule.')}</p><div class="grid">`;
     s.poules.forEach(p => {
-      h += `<div class="card"><h3>Poule ${p.id}</h3>${p.players.map((id, i) => `<div class="drawp ${drawSel === id ? 'sel' : ''}" data-action="draw-swap" data-id="${id}"><b class="mnr" style="min-width:18px">${i + 1}</b>${esc(pname(id))} <span class="muted small">${esc(prank(id))}</span></div>`).join('')}</div>`;
+      h += `<div class="card"><h3>${L('Poule {0}', p.id)}</h3>${p.players.map((id, i) => `<div class="drawp ${drawSel === id ? 'sel' : ''}" data-action="draw-swap" data-id="${id}"><b class="mnr" style="min-width:18px">${i + 1}</b>${esc(pname(id))} <span class="muted small">${esc(prank(id))}</span></div>`).join('')}</div>`;
     });
     return h + '</div>';
   }
-  let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="print">🖨 Afdrukken (reserve op papier)</button><button data-action="slips-poules">🖨 Wedstrijdbriefjes poules</button>
-    <span class="muted small">Blauwe rijen gaan door naar de hoofdtabel. Rangschikking: matchpunten (winst 2, verlies 1, forfait 0), daarna onderling resultaat.</span></div><div class="grid">`;
+  let h = `<div class="row noprint" style="margin-bottom:14px"><button data-action="print">🖨 ${L('Afdrukken (reserve op papier)')}</button><button data-action="slips-poules">🖨 ${L('Wedstrijdbriefjes poules')}</button>
+    <span class="muted small">${L('Blauwe rijen gaan door naar de hoofdtabel. Rangschikking: matchpunten (winst 2, verlies 1, forfait 0), daarna onderling resultaat.')}</span></div><div class="grid">`;
   s.poules.forEach(p => {
     const ms = s.matches.filter(m => m.kind === 'poule' && m.poule === p.id);
     const done = ms.filter(TT.isDone).length;
-    h += `<div class="card"><h3>Poule ${p.id} <span class="pill ${done === ms.length ? 'ok' : ''}">${done}/${ms.length}</span></h3>${standingTable(p.id)}<div style="margin-top:8px">${ms.map(m => matchLine(m, { nrs: true })).join('')}</div></div>`;
+    h += `<div class="card"><h3>${L('Poule {0}', p.id)} <span class="pill ${done === ms.length ? 'ok' : ''}">${done}/${ms.length}</span></h3>${standingTable(p.id)}<div style="margin-top:8px">${ms.map(m => matchLine(m, { nrs: true })).join('')}</div></div>`;
   });
   return h + '</div>';
 }
@@ -1123,28 +1420,28 @@ function viewPoules() {
 /* ---------- Wedstrijden & tafels ---------- */
 function hcSelect(s) {
   const o = (v, cur, t) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`, h = s.settings.handicap;
-  return `<label>Puntenaanpassing <select data-set="handicap">${o('lead', h, 'voorgift: laagst geklasseerde start met voorsprong, iedereen tot 11')}${o('target', h, 'handicap: hoogst geklasseerde speelt verder dan 11')}${o('none', h, 'geen aanpassing')}</select></label>
-      ${h === 'none' ? '' : `<label>Punten <select data-set="hcRound">${o('down', s.settings.hcRound, '1 per 2 klassementen (1 klassement = 0)')}${o('up', s.settings.hcRound, 'VTTL-tabel (1 klassement = 1)')}</select></label>`}`;
+  return `<label>${L('Puntenaanpassing')} <select data-set="handicap">${o('lead', h, L('voorgift: laagst geklasseerde start met voorsprong, iedereen tot 11'))}${o('target', h, L('handicap: hoogst geklasseerde speelt verder dan 11'))}${o('none', h, L('geen aanpassing'))}</select></label>
+      ${h === 'none' ? '' : `<label>${L('Punten')} <select data-set="hcRound">${o('down', s.settings.hcRound, L('1 per 2 klassementen (1 klassement = 0)'))}${o('up', s.settings.hcRound, L('VTTL-tabel (1 klassement = 1)'))}</select></label>`}`;
 }
 // Voorgift/handicap in woorden voor wedstrijd m ('' als er geen is).
 function hcText(m, tg = TT.targets(state, m)) {
-  if (tg.mode === 'lead') { const i = tg.lead[0] ? 0 : 1; return `Voorgift: ${esc(pname(i ? m.p2 : m.p1))} start met ${tg.n} punt${tg.n > 1 ? 'en' : ''} (${i ? `0-${tg.n}` : `${tg.n}-0`}), tot 11`; }
-  if (tg.mode === 'target') return `${esc(pname(m.p1))} tot ${tg.t[0]} · ${esc(pname(m.p2))} tot ${tg.t[1]}`;
+  if (tg.mode === 'lead') { const i = tg.lead[0] ? 0 : 1; const who = esc(pname(i ? m.p2 : m.p1)), sc = i ? `0-${tg.n}` : `${tg.n}-0`; return tg.n > 1 ? L('Voorgift: {0} start met {1} punten ({2}), tot 11', who, tg.n, sc) : L('Voorgift: {0} start met {1} punt ({2}), tot 11', who, tg.n, sc); }
+  if (tg.mode === 'target') return L('{0} tot {1}', esc(pname(m.p1)), tg.t[0]) + ' · ' + L('{0} tot {1}', esc(pname(m.p2)), tg.t[1]);
   return '';
 }
 function extraInfo(m) {
   const out = [], ht = hcText(m);
   if (ht) out.push(ht);
-  if (m.ump && !TT.isDone(m)) out.push(`Telt: ${esc(pname(m.ump))}`);
+  if (m.ump && !TT.isDone(m)) out.push(L('Telt: {0}', esc(pname(m.ump))));
   return out.length ? `<div class="small"><b>${out.join(' · ')}</b></div>` : '';
 }
 function slipsHtml(ms) {
   return ms.map(m => {
     const tg = TT.targets(state, m), bo = m.bo || state.settings.bestOf;
-    return `<div class="slip"><div class="row" style="justify-content:space-between"><b>${mLabel(m)}${m.kind === 'poule' ? ` · wedstrijd ${matchNrs(m)}` : ''}</b><span>Tafel: ${m.table || '____'}</span></div>
-      <table><tr><th></th>${Array.from({ length: bo }, (_, i) => `<th>Set ${i + 1}</th>`).join('')}<th>Sets</th></tr>
-      ${[m.p1, m.p2].map((p, i) => `<tr><td class="sn">${esc(pname(p))} <span class="small">${esc(prank(p))}</span>${tg.mode === 'target' ? ` <b>tot ${tg.t[i]}</b>` : tg.lead[i] ? ` <b>start met ${tg.lead[i]}</b>` : ''}</td>${'<td class="box"></td>'.repeat(bo + 1)}</tr>`).join('')}</table>
-      <div class="small">${(bo + 1) / 2} winnende sets${tg.mode === 'target' ? '' : ' tot 11'}${m.ump ? ` · Telt: ${esc(pname(m.ump))}` : ''} · Winnaar brengt dit briefje terug</div></div>`;
+    return `<div class="slip"><div class="row" style="justify-content:space-between"><b>${mLabel(m)}${m.kind === 'poule' ? ` · ${L('wedstrijd {0}', matchNrs(m))}` : ''}</b><span>${L('Tafel: {0}', m.table || '____')}</span></div>
+      <table><tr><th></th>${Array.from({ length: bo }, (_, i) => `<th>${L('Set {0}', i + 1)}</th>`).join('')}<th>${L('Sets')}</th></tr>
+      ${[m.p1, m.p2].map((p, i) => `<tr><td class="sn">${esc(pname(p))} <span class="small">${esc(prank(p))}</span>${tg.mode === 'target' ? ` <b>${L('tot {0}', tg.t[i])}</b>` : tg.lead[i] ? ` <b>${L('start met {0}', tg.lead[i])}</b>` : ''}</td>${'<td class="box"></td>'.repeat(bo + 1)}</tr>`).join('')}</table>
+      <div class="small">${tg.mode === 'target' ? L('{0} winnende sets', (bo + 1) / 2) : L('{0} winnende sets tot 11', (bo + 1) / 2)}${m.ump ? ` · ${L('Telt: {0}', esc(pname(m.ump)))}` : ''} · ${L('Winnaar brengt dit briefje terug')}</div></div>`;
   }).join('');
 }
 // Briefjes van de poules: één blad per poule, in de volgorde van het pouleblad, met bovenaan de
@@ -1153,15 +1450,15 @@ function pouleSlipsHtml(ms) {
   return state.poules.map(p => {
     const mine = ms.filter(m => m.poule === p.id);
     if (!mine.length) return '';
-    return `<section class="slip-page"><h2>Poule ${p.id}</h2>
+    return `<section class="slip-page"><h2>${L('Poule {0}', p.id)}</h2>
       <div class="slip-who">${p.players.map((id, i) => `<span><b>${i + 1}</b> ${esc(pname(id))} <span class="small">${esc(prank(id))}</span></span>`).join('')}</div>
-      <div class="slip-grid">${slipsHtml(mine)}</div></section>`;
+      <div class="slip-grid">${slipsHtml(mine)}</div>${printFooter()}</section>`;
   }).join('');
 }
 function printSlips(ms, perPoule) {
-  if (!ms.length) { toast('Geen wedstrijden om af te drukken.', true); return; }
+  if (!ms.length) { toast(L('Geen wedstrijden om af te drukken.'), true); return; }
   const box = document.getElementById('slips');
-  box.innerHTML = perPoule ? pouleSlipsHtml(ms) : slipsHtml(ms);
+  box.innerHTML = perPoule ? pouleSlipsHtml(ms) : slipsHtml(ms) + printFooter();
   box.classList.toggle('per-poule', !!perPoule);
   document.body.classList.add('print-slips');
   const done = () => { document.body.classList.remove('print-slips'); window.removeEventListener('afterprint', done); };
@@ -1169,37 +1466,37 @@ function printSlips(ms, perPoule) {
   window.print();
 }
 function mLabel(m) {
-  if (m.kind === 'poule') return `Poule ${m.poule}`;
-  return `${m.kind === 'cons' ? 'Troosttabel' : 'Hoofdtabel'} · ${TT.groupLabel(m)}`;
+  if (m.kind === 'poule') return L('Poule {0}', m.poule);
+  return `${m.kind === 'cons' ? L('Troosttabel') : L('Hoofdtabel')} · ${TT.groupLabel(m)}`;
 }
 function viewMatches() {
   const s = state, ready = TT.readyMatches(s), free = TT.freeTables(s);
   const playing = s.matches.filter(m => m.table && !TT.isDone(m));
   let h = '';
-  if (s.stage === 'poules' && TT.allPoulesDone(s)) h += `<div class="notice ok">Alle poulewedstrijden zijn gespeeld. <button class="primary" data-action="start-ko">Eindrondes aanmaken →</button></div>`;
+  if (s.stage === 'poules' && TT.allPoulesDone(s)) h += `<div class="notice ok">${L('Alle poulewedstrijden zijn gespeeld.')} <button class="primary" data-action="start-ko">${L('Eindrondes aanmaken')} →</button></div>`;
   const pm = TT.podium(s, 'main');
-  if (pm) h += `<div class="notice ok champ">🏆 Clubkampioen: ${esc(pname(pm.first))}</div>`;
-  h += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Tafels</h2>
-    <span class="row">${s.stage === 'poules' ? '<button data-action="tab" data-tab="spelers">＋ Laatkomer</button>' : ''}<button data-action="slips-playing" ${playing.length ? '' : 'disabled'}>🖨 Briefjes lopende wedstrijden</button><button class="primary" data-action="auto" ${!free.length || !ready.length ? 'disabled' : ''}>Vrije tafels vullen</button></span></div><div class="tables" style="margin-top:10px">`;
+  if (pm) h += `<div class="notice ok champ">🏆 ${L('Clubkampioen: {0}', esc(pname(pm.first)))}</div>`;
+  h += `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${L('Tafels')}</h2>
+    <span class="row">${s.stage === 'poules' ? `<button data-action="tab" data-tab="spelers">＋ ${L('Laatkomer')}</button>` : ''}<button data-action="slips-playing" ${playing.length ? '' : 'disabled'}>🖨 ${L('Briefjes lopende wedstrijden')}</button><button class="primary" data-action="auto" ${!free.length || !ready.length ? 'disabled' : ''}>${L('Vrije tafels vullen')}</button></span></div><div class="tables" style="margin-top:10px">`;
   for (let t = 1; t <= s.settings.tables; t++) {
     const m = playing.find(x => x.table === t);
-    h += m ? `<div class="tbl busy"><div class="tno">Tafel ${t}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}
-        <div class="row"><button class="sm primary" data-action="score" data-id="${m.id}">Uitslag</button><button class="sm" data-action="unassign" data-id="${m.id}">Terug naar wachtrij</button></div></div>`
-      : `<div class="tbl"><div class="tno">Tafel ${t}</div><div class="muted">Vrij</div></div>`;
+    h += m ? `<div class="tbl busy"><div class="tno">${L('Tafel {0}', t)}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}
+        <div class="row"><button class="sm primary" data-action="score" data-id="${m.id}">${L('Uitslag')}</button><button class="sm" data-action="unassign" data-id="${m.id}">${L('Terug naar wachtrij')}</button></div></div>`
+      : `<div class="tbl"><div class="tno">${L('Tafel {0}', t)}</div><div class="muted">${L('Vrij')}</div></div>`;
   }
   h += `</div></div>`;
-  h += `<div class="card"><h2>Klaar om te spelen (${ready.length})</h2>`;
-  if (!ready.length) h += `<p class="muted">Geen wedstrijden klaar. ${playing.length ? 'Wacht op lopende wedstrijden.' : ''}</p>`;
+  h += `<div class="card"><h2>${L('Klaar om te spelen ({0})', ready.length)}</h2>`;
+  if (!ready.length) h += `<p class="muted">${L('Geen wedstrijden klaar.')} ${playing.length ? L('Wacht op lopende wedstrijden.') : ''}</p>`;
   ready.slice(0, 40).forEach(m => {
     h += `<div class="match"><div class="names">${esc(pname(m.p1))} – ${esc(pname(m.p2))}<div class="muted small">${mLabel(m)}</div></div>
-      ${free.length ? `<select data-assign="${m.id}"><option value="">Naar tafel…</option>${free.map(t => `<option value="${t}">Tafel ${t}</option>`).join('')}</select>` : ''}
-      <button class="sm" data-action="score" data-id="${m.id}">Uitslag</button></div>`;
+      ${free.length ? `<select data-assign="${m.id}"><option value="">${L('Naar tafel…')}</option>${free.map(t => `<option value="${t}">${L('Tafel {0}', t)}</option>`).join('')}</select>` : ''}
+      <button class="sm" data-action="score" data-id="${m.id}">${L('Uitslag')}</button></div>`;
   });
   h += `</div>`;
   const waiting = s.matches.filter(m => !TT.isDone(m) && !m.table && TT.isPlayable(m) && !ready.includes(m));
-  if (waiting.length) h += `<div class="card"><h2>Wacht op speler die nog bezig is (${waiting.length})</h2>${waiting.slice(0, 20).map(m => matchLine(m, { label: mLabel(m), noBtn: true })).join('')}</div>`;
+  if (waiting.length) h += `<div class="card"><h2>${L('Wacht op speler die nog bezig is ({0})', waiting.length)}</h2>${waiting.slice(0, 20).map(m => matchLine(m, { label: mLabel(m), noBtn: true })).join('')}</div>`;
   const recent = s.matches.filter(m => TT.isDone(m) && !m.bye).sort((a, b) => b.finished - a.finished).slice(0, 12);
-  if (recent.length) h += `<div class="card"><h2>Laatst gespeeld</h2>${recent.map(m => matchLine(m, { label: mLabel(m) })).join('')}</div>`;
+  if (recent.length) h += `<div class="card"><h2>${L('Laatst gespeeld')}</h2>${recent.map(m => matchLine(m, { label: mLabel(m) })).join('')}</div>`;
   return h;
 }
 
@@ -1207,13 +1504,13 @@ function viewMatches() {
 function bmHtml(m, clickable) {
   const done = TT.isDone(m);
   const side = (p, i) => {
-    const nm = p ? (p === 'BYE' ? '<span class="tbd">vrij</span>' : TT.isToken(p) ? `<span class="tbd">${esc(pname(p))}</span>` : esc(pname(p))) : '<span class="tbd">…</span>';
+    const nm = p ? (p === 'BYE' ? `<span class="tbd">${L('vrij')}</span>` : TT.isToken(p) ? `<span class="tbd">${esc(pname(p))}</span>` : esc(pname(p))) : '<span class="tbd">…</span>';
     const sc = done && !m.bye ? m.score[i] : '';
     return `<div class="bp ${done && m.winner === p ? 'w' : ''}"><span>${nm}</span><span>${sc}</span></div>`;
   };
   const can = clickable && TT.isPlayable(m) && !m.bye;
   return `<div class="bm ${done ? 'done' : ''} ${!done && !m.bye && TT.isPlayable(m) ? 'can' : ''} ${m.table && !done ? 'playing' : ''} ${m.bye ? 'bye' : ''}" ${can ? `data-action="score" data-id="${m.id}"` : ''}
-    title="${m.table && !done ? 'Tafel ' + m.table : ''}">${side(m.p1, 0)}${side(m.p2, 1)}</div>`;
+    title="${m.table && !done ? L('Tafel {0}', m.table) : ''}">${side(m.p1, 0)}${side(m.p2, 1)}</div>`;
 }
 // Eén "ketting": groep (start,size) en daarna telkens de winnaarshelft, tot de wedstrijd om plaats start.
 function chainHtml(kind, start, size, clickable) {
@@ -1223,7 +1520,7 @@ function chainHtml(kind, start, size, clickable) {
     const vis = ms.filter(m => !(m.p1 === 'BYE' && m.p2 === 'BYE') && !(m.bye && m.gsize !== m.B));
     if (!vis.length) continue;
     any = true;
-    h += `<div class="bround"><h4>${TT.groupLabel(ms[0])}${ms[0].bo !== state.settings.bestOf ? ` · best of ${ms[0].bo}` : ''}</h4>${vis.map(m => bmHtml(m, clickable)).join('')}</div>`;
+    h += `<div class="bround"><h4>${TT.groupLabel(ms[0])}${ms[0].bo !== state.settings.bestOf ? ` · ${L('best of {0}', ms[0].bo)}` : ''}</h4>${vis.map(m => bmHtml(m, clickable)).join('')}</div>`;
   }
   return any ? h + '</div>' : '';
 }
@@ -1236,54 +1533,55 @@ function chainStarts(kind) {
 }
 function bracketHtml(kind, clickable = true, onlyMain = false) {
   const chains = chainStarts(kind);
-  if (!chains.length) return '<p class="muted">Geen tabel.</p>';
+  if (!chains.length) return `<p class="muted">${L('Geen tabel.')}</p>`;
   return (onlyMain ? chains.slice(0, 1) : chains).map(([st, sz], i) => {
     const c = chainHtml(kind, st, sz, clickable);
-    return c ? (i ? '<h3 style="margin:16px 0 6px">Plaatsingswedstrijden</h3>'.repeat(i === 1 ? 1 : 0) : '') + `<div style="margin-bottom:10px">${c}</div>` : '';
+    return c ? (i ? `<h3 style="margin:16px 0 6px">${L('Plaatsingswedstrijden')}</h3>`.repeat(i === 1 ? 1 : 0) : '') + `<div style="margin-bottom:10px">${c}</div>` : '';
   }).join('');
 }
 function rankingHtml() {
   const fr = TT.finalRanking(state);
   if (!fr.length) return '';
-  return `<div class="card"><h2>Eindklassement${state.matches.some(m => m.kind !== 'poule' && !TT.isDone(m)) ? ' (voorlopig)' : ''}</h2>
+  return `<div class="card"><h2>${state.matches.some(m => m.kind !== 'poule' && !TT.isDone(m)) ? L('Eindklassement (voorlopig)') : L('Eindklassement')}</h2>
     <div style="columns:3 220px">${fr.map(x => `<div>${x.pos}. ${esc(pname(x.pid))}</div>`).join('')}</div></div>`;
 }
 function podiumHtml(kind) {
   const p = TT.podium(state, kind);
   if (!p) return '';
-  return `<div class="notice ok"><div class="champ">🏆 ${esc(pname(p.first))}</div>2de: ${esc(pname(p.second))}${p.third.length ? ` · 3de: ${p.third.map(x => esc(pname(x))).join(' en ')}` : ''}</div>`;
+  return `<div class="notice ok"><div class="champ">🏆 ${esc(pname(p.first))}</div>${L('2de: {0}', esc(pname(p.second)))}${p.third.length ? ` · ${L('3de: {0}', p.third.map(x => esc(pname(x))).join(L(' en ')))}` : ''}</div>`;
 }
 function viewKnockout() {
   const s = state;
   if (s.stage === 'poules') {
     const left = s.matches.filter(m => m.kind === 'poule' && !TT.isDone(m)).length;
-    return `<div class="card"><h2>Eindrondes</h2>${left ? `<p>Nog ${left} poulewedstrijd${left > 1 ? 'en' : ''} te spelen. Je kunt de eindrondes nu al aanmaken: de tabel toont dan "1ste poule A" enzovoort en vult zich vanzelf in zodra een poule klaar is. Wedstrijden waarvan beide spelers bekend zijn, kunnen meteen starten.</p><button class="primary" data-action="start-ko">Eindrondes nu al aanmaken →</button>
-        <p class="hint">Let op: daarna kun je geen laatkomer meer toevoegen en niemand meer afmelden.</p>` :
-      `<p>Alle poules zijn klaar.</p><button class="primary" data-action="start-ko">Eindrondes aanmaken →</button>`}
-      <p class="muted small">Top ${s.settings.qualifiers} van elke poule gaat naar de hoofdtabel${s.settings.consolation ? ', de anderen naar de troosttabel' : ''}. Iedereen speelt door tot zijn eindplaats vaststaat. De opstelling volgt de vaste eindrondetabellen van de club (2 tot 8 poules).</p></div>`;
+    return `<div class="card"><h2>${L('Eindrondes')}</h2>${left ? `<p>${left > 1 ? L('Nog {0} poulewedstrijden te spelen.', left) : L('Nog {0} poulewedstrijd te spelen.', left)} ${L('Je kunt de eindrondes nu al aanmaken: de tabel toont dan "{0}" enzovoort en vult zich vanzelf in zodra een poule klaar is. Wedstrijden waarvan beide spelers bekend zijn, kunnen meteen starten.', pname('?A:1'))}</p><button class="primary" data-action="start-ko">${L('Eindrondes nu al aanmaken')} →</button>
+        <p class="hint">${L('Let op: daarna kun je geen laatkomer meer toevoegen en niemand meer afmelden.')}</p>` :
+      `<p>${L('Alle poules zijn klaar.')}</p><button class="primary" data-action="start-ko">${L('Eindrondes aanmaken')} →</button>`}
+      <p class="muted small">${s.settings.consolation ? L('Top {0} van elke poule gaat naar de hoofdtabel, de anderen naar de troosttabel.', s.settings.qualifiers) : L('Top {0} van elke poule gaat naar de hoofdtabel.', s.settings.qualifiers)} ${L('Iedereen speelt door tot zijn eindplaats vaststaat. De opstelling volgt de vaste eindrondetabellen van de club (2 tot 8 poules).')}</p></div>`;
   }
   const anyKo = s.matches.some(m => m.kind !== 'poule' && TT.isDone(m) && !m.bye);
-  let h = `<div class="card"><h2>Hoofdtabel</h2>${podiumHtml('main')}${bracketHtml('main')}<p class="hint">Klik op een wedstrijd om de uitslag in te geven. <b style="color:var(--ok)">Groen</b> = beide spelers zijn bekend, deze wedstrijd kan nu gespeeld worden.</p></div>`;
-  if (s.matches.some(m => m.kind === 'cons')) h += `<div class="card"><h2>Troosttabel</h2>${podiumHtml('cons')}${bracketHtml('cons')}</div>`;
+  let h = `<div class="card"><h2>${L('Hoofdtabel')}</h2>${podiumHtml('main')}${bracketHtml('main')}<p class="hint">${L('Klik op een wedstrijd om de uitslag in te geven. <b style="color:var(--ok)">Groen</b> = beide spelers zijn bekend, deze wedstrijd kan nu gespeeld worden.')}</p></div>`;
+  if (s.matches.some(m => m.kind === 'cons')) h += `<div class="card"><h2>${L('Troosttabel')}</h2>${podiumHtml('cons')}${bracketHtml('cons')}</div>`;
   h += rankingHtml();
-  h += `<div class="card noprint"><button class="primary" data-action="print">🖨 Afdrukken</button> <button class="danger" data-action="reset-ko">Eindrondes wissen</button> <span class="hint">${anyKo ? 'Let op: dit wist ook de al gespeelde eindronde-uitslagen.' : 'Bv. om nog een poule-uitslag te verbeteren.'}</span></div>`;
+  h += `<div class="card noprint"><button class="primary" data-action="print">🖨 ${L('Afdrukken')}</button> <button class="danger" data-action="reset-ko">${L('Eindrondes wissen')}</button> <span class="hint">${anyKo ? L('Let op: dit wist ook de al gespeelde eindronde-uitslagen.') : L('Bv. om nog een poule-uitslag te verbeteren.')}</span></div>`;
   return h;
 }
 
 /* ---------- Back-up ---------- */
 function viewBackup() {
   const s = state;
-  return `<div class="card"><h2>Back-up</h2>
-    <p>Alles wordt automatisch in deze browser bewaard (ook zonder internet). Download af en toe een back-up, bv. na de poules. Met een back-up kun je verder op een andere laptop.</p>
-    <div class="row"><button class="primary" data-action="export">⬇ Back-up downloaden</button>
-    <label class="btn">⬆ Back-up laden <input type="file" accept=".json,application/json" data-action="import" style="display:none"></label></div></div>
-    <div class="card"><h2>Instellingen tijdens het tornooi</h2><div class="row">
-      <label>Aantal tafels <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
+  return `<div class="card"><h2>${L('Taal')}</h2><div class="row">${langSelect()}<span class="hint">${L('De keuze wordt onthouden in deze browser. Ook de briefjes en het tv-scherm volgen de taal.')}</span></div></div>
+    <div class="card"><h2>${L('Back-up')}</h2>
+    <p>${L('Alles wordt automatisch in deze browser bewaard (ook zonder internet). Download af en toe een back-up, bv. na de poules. Met een back-up kun je verder op een andere laptop.')}</p>
+    <div class="row"><button class="primary" data-action="export">⬇ ${L('Back-up downloaden')}</button>
+    <label class="btn">⬆ ${L('Back-up laden')} <input type="file" accept=".json,application/json" data-action="import" style="display:none"></label></div></div>
+    <div class="card"><h2>${L('Instellingen tijdens het tornooi')}</h2><div class="row">
+      <label>${L('Aantal tafels')} <input type="number" min="1" max="30" data-set="tables" value="${s.settings.tables}" style="width:70px"></label>
       ${hcSelect(s)}
-      <label>Naam <input data-set="name" value="${esc(s.name)}" style="width:260px"></label></div>
-      <p class="hint">Wedstrijdformaat: ${(s.settings.bestOf + 1) / 2} winnende sets, vanaf halve finale ${(s.settings.bestOfFinals + 1) / 2} · top ${s.settings.qualifiers} door · troosttabel ${s.settings.consolation ? 'ja' : 'nee'}</p></div>
-    <div class="card"><h2>Tweede scherm</h2><p>Open <b>🖥 Scherm</b> (rechtsboven) en sleep dat venster naar de tv of beamer (F11 voor volledig scherm). Het volgt automatisch alle uitslagen die je hier ingeeft.</p></div>
-    <div class="card"><h2>Nieuw tornooi</h2><p class="muted">Sluit het huidige tornooi af en begint opnieuw. Er wordt eerst automatisch een back-up gedownload, en de instellingen blijven behouden.</p><button class="danger" data-action="new-tournament">Nieuw tornooi</button></div>`;
+      <label>${L('Naam')} <input data-set="name" value="${esc(tName(s.name))}" style="width:260px"></label></div>
+      <p class="hint">${L('Wedstrijdformaat: {0} winnende sets, vanaf halve finale {1} · top {2} door · troosttabel {3}', (s.settings.bestOf + 1) / 2, (s.settings.bestOfFinals + 1) / 2, s.settings.qualifiers, s.settings.consolation ? L('ja') : L('nee'))}</p></div>
+    <div class="card"><h2>${L('Tweede scherm')}</h2><p>${L('Open <b>🖥 Scherm</b> (rechtsboven) en sleep dat venster naar de tv of beamer (F11 voor volledig scherm). Het volgt automatisch alle uitslagen die je hier ingeeft.')}</p></div>
+    <div class="card"><h2>${L('Nieuw tornooi')}</h2><p class="muted">${L('Sluit het huidige tornooi af en begint opnieuw. Er wordt eerst automatisch een back-up gedownload, en de instellingen blijven behouden.')}</p><button class="danger" data-action="new-tournament">${L('Nieuw tornooi')}</button></div>`;
 }
 
 /* ---------- Tv / beamer ---------- */
@@ -1292,22 +1590,22 @@ function renderDisplay() {
   const playing = s.matches.filter(m => m.table && !TT.isDone(m)).sort((a, b) => a.table - b.table);
   const next = TT.readyMatches(s).slice(0, Math.max(4, s.settings.tables));
   const now = new Date();
-  let h = `<div class="disp-head"><h1 class="row">${logoOk ? `<img class="logo" src="${CLUB_LOGO}" alt="" onerror="logoOk=false;this.remove()">` : ''}${esc(s.name)}</h1><div class="disp-clock">${now.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' })}</div></div>`;
+  let h = `<div class="disp-head"><h1 class="row">${logoOk ? `<img class="logo" src="${CLUB_LOGO}" alt="" onerror="logoOk=false;this.remove()">` : ''}${esc(tName(s.name))}</h1><div class="disp-clock">${now.toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' })}</div></div>`;
   const pm = TT.podium(s, 'main');
-  if (pm) h += `<div class="card" style="text-align:center"><div style="font-size:48px">🏆 ${esc(pname(pm.first))}</div><div class="muted">Clubkampioen · 2de ${esc(pname(pm.second))}${pm.third.length ? ' · 3de ' + pm.third.map(x => esc(pname(x))).join(' en ') : ''}</div></div>`;
+  if (pm) h += `<div class="card" style="text-align:center"><div style="font-size:48px">🏆 ${esc(pname(pm.first))}</div><div class="muted">${L('Clubkampioen')} · ${L('2de: {0}', esc(pname(pm.second)))}${pm.third.length ? ' · ' + L('3de: {0}', pm.third.map(x => esc(pname(x))).join(L(' en '))) : ''}</div></div>`;
   if (playing.length || next.length) {
-    h += `<div class="grid" style="grid-template-columns:2fr 1fr"><div class="card"><h2>Nu aan tafel</h2><div class="tables">${playing.map(m => `<div class="tbl busy"><div class="tno">Tafel ${m.table}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}</div>`).join('') || '<p class="muted">–</p>'}</div></div>
-      <div class="card"><h2>Volgende</h2>${next.map(m => `<div class="match"><div class="names">${esc(pname(m.p1))} – ${esc(pname(m.p2))}<div class="muted small">${mLabel(m)}</div></div></div>`).join('') || '<p class="muted">–</p>'}</div></div>`;
+    h += `<div class="grid" style="grid-template-columns:2fr 1fr"><div class="card"><h2>${L('Nu aan tafel')}</h2><div class="tables">${playing.map(m => `<div class="tbl busy"><div class="tno">${L('Tafel {0}', m.table)}</div><div class="vs">${esc(pname(m.p1))}<br>${esc(pname(m.p2))}</div><div class="muted small">${mLabel(m)}</div>${extraInfo(m)}</div>`).join('') || '<p class="muted">–</p>'}</div></div>
+      <div class="card"><h2>${L('Volgende')}</h2>${next.map(m => `<div class="match"><div class="names">${esc(pname(m.p1))} – ${esc(pname(m.p2))}<div class="muted small">${mLabel(m)}</div></div></div>`).join('') || '<p class="muted">–</p>'}</div></div>`;
   }
   if (s.stage === 'knockout') {
-    if (!TT.allPoulesDone(s)) h += `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(420px,1fr))">${s.poules.filter(p => !TT.pouleComplete(s, p.id)).map(p => `<div class="card"><h3>Poule ${p.id}</h3>${standingTable(p.id, true)}</div>`).join('')}</div>`;
-    h += `<div class="card"><h2>Hoofdtabel</h2>${bracketHtml('main', false, true)}</div>`;
-    if (s.matches.some(m => m.kind === 'cons')) h += `<div class="card"><h2>Troosttabel</h2>${bracketHtml('cons', false, true)}</div>`;
+    if (!TT.allPoulesDone(s)) h += `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(420px,1fr))">${s.poules.filter(p => !TT.pouleComplete(s, p.id)).map(p => `<div class="card"><h3>${L('Poule {0}', p.id)}</h3>${standingTable(p.id, true)}</div>`).join('')}</div>`;
+    h += `<div class="card"><h2>${L('Hoofdtabel')}</h2>${bracketHtml('main', false, true)}</div>`;
+    if (s.matches.some(m => m.kind === 'cons')) h += `<div class="card"><h2>${L('Troosttabel')}</h2>${bracketHtml('cons', false, true)}</div>`;
     h += rankingHtml();
   } else if (s.poules.length) {
-    h += `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(420px,1fr))">${s.poules.map(p => `<div class="card"><h3>Poule ${p.id}</h3>${standingTable(p.id, true)}</div>`).join('')}</div>`;
-  } else h += `<div class="card"><p class="muted">Het tornooi start binnenkort.</p></div>`;
-  $app.innerHTML = h;
+    h += `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(420px,1fr))">${s.poules.map(p => `<div class="card"><h3>${L('Poule {0}', p.id)}</h3>${standingTable(p.id, true)}</div>`).join('')}</div>`;
+  } else h += `<div class="card"><p class="muted">${L('Het tornooi start binnenkort.')}</p></div>`;
+  $app.innerHTML = h + footerHtml();
 }
 
 /* ---------- Uitslag-venster ---------- */
@@ -1321,19 +1619,19 @@ function openScore(id) {
   for (let k = 0; k < need; k++) quick.push([need, k]);
   for (let k = need - 1; k >= 0; k--) quick.push([k, need]);
   $modal.innerHTML = `<div class="modal-bg" data-action="close-modal"><div class="modal" role="dialog">
-    <h2>${esc(pname(m.p1))} – ${esc(pname(m.p2))}</h2><div class="muted small">${mLabel(m)} · ${need} winnende sets${m.table ? ' · tafel ' + m.table : ''}</div>${extraInfo(m)}
+    <h2>${esc(pname(m.p1))} – ${esc(pname(m.p2))}</h2><div class="muted small">${mLabel(m)} · ${L('{0} winnende sets', need)}${m.table ? ' · ' + L('tafel {0}', m.table) : ''}</div>${extraInfo(m)}
     <form data-form="score" data-id="${m.id}" autocomplete="off">
-      <div class="sets">${Array.from({ length: bo }, (_, i) => `<span>Set ${i + 1}</span><input name="s${i}" value="${m.sets[i] ? m.sets[i].join('-') : ''}" inputmode="text" placeholder="${i === 0 ? `bv. ${tg.t[0]}-7 of 7` : ''}">`).join('')}</div>
-      <div class="hint">${tg.mode === 'lead' ? `Typ de eindstand op het telbord (voorgift inbegrepen), bv. <b>11-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.`
-        : tg.n ? `Handicap: ${esc(pname(m.p1))} speelt tot <b>${tg.t[0]}</b>, ${esc(pname(m.p2))} tot <b>${tg.t[1]}</b>. Typ de echte stand, bv. <b>${tg.t[0]}-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = gewonnen met 7 tegen, <b>-9</b> = verloren met zelf 9.`
-        : `Typ <b>11-7</b>, of kort vanuit ${esc(pname(m.p1))}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.`}</div>
+      <div class="sets">${Array.from({ length: bo }, (_, i) => `<span>${L('Set {0}', i + 1)}</span><input name="s${i}" value="${m.sets[i] ? m.sets[i].join('-') : ''}" inputmode="text" placeholder="${i === 0 ? L('bv. {0}-7 of 7', tg.t[0]) : ''}">`).join('')}</div>
+      <div class="hint">${tg.mode === 'lead' ? L('Typ de eindstand op het telbord (voorgift inbegrepen), bv. <b>11-7</b>, of kort vanuit {0}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.', esc(pname(m.p1)))
+        : tg.n ? L('Handicap: {0} speelt tot <b>{1}</b>, {2} tot <b>{3}</b>. Typ de echte stand, bv. <b>{1}-7</b>, of kort vanuit {0}: <b>7</b> = gewonnen met 7 tegen, <b>-9</b> = verloren met zelf 9.', esc(pname(m.p1)), tg.t[0], esc(pname(m.p2)), tg.t[1])
+        : L('Typ <b>11-7</b>, of kort vanuit {0}: <b>7</b> = 11-7 gewonnen, <b>-9</b> = 9-11 verloren, <b>12</b> = 14-12.', esc(pname(m.p1)))}</div>
       <div class="err" id="scoreErr"></div>
-      <div class="row"><button class="primary">Opslaan</button><button type="button" data-action="close-modal">Annuleren</button>
-        ${TT.isDone(m) ? `<button type="button" class="danger" data-action="clear-score" data-id="${m.id}">Uitslag wissen</button>` : ''}</div>
+      <div class="row"><button class="primary">${L('Opslaan')}</button><button type="button" data-action="close-modal">${L('Annuleren')}</button>
+        ${TT.isDone(m) ? `<button type="button" class="danger" data-action="clear-score" data-id="${m.id}">${L('Uitslag wissen')}</button>` : ''}</div>
       <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
-        <div class="small"><b>Of meteen alleen de sets</b> (${esc(pname(m.p1))} – ${esc(pname(m.p2))}):</div>
+        <div class="small"><b>${L('Of meteen alleen de sets')}</b> (${esc(pname(m.p1))} – ${esc(pname(m.p2))}):</div>
         <div class="row" style="margin-top:8px">${quick.map(([a, b]) => `<button type="button" data-action="quick-score" data-id="${m.id}" data-a="${a}" data-b="${b}">${a}-${b}</button>`).join('')}</div>
-        <div class="row" style="margin-top:8px"><button type="button" data-action="wo" data-id="${m.id}" data-wo="1">Forfait ${esc(pname(m.p1))}</button><button type="button" data-action="wo" data-id="${m.id}" data-wo="2">Forfait ${esc(pname(m.p2))}</button></div>
+        <div class="row" style="margin-top:8px"><button type="button" data-action="wo" data-id="${m.id}" data-wo="1">${L('Forfait {0}', esc(pname(m.p1)))}</button><button type="button" data-action="wo" data-id="${m.id}" data-wo="2">${L('Forfait {0}', esc(pname(m.p2)))}</button></div>
       </div>
     </form></div></div>`;
   setTimeout(() => $modal.querySelector('input[name=s0]')?.focus(), 0);
@@ -1343,7 +1641,7 @@ function exportBackup() {
   const blob = new Blob([JSON.stringify(state, null, 1)], { type: 'application/json' });
   const u = URL.createObjectURL(blob), l = document.createElement('a');
   const d = new Date(), pad = n => String(n).padStart(2, '0');
-  const nm = (state.name || 'tornooi').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tornooi';
+  const nm = (tName(state.name) || 'tornooi').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tornooi';
   l.href = u; l.download = `${nm}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
 }
@@ -1360,7 +1658,7 @@ function addPlayers(list) {
     if (seen.has(nameKey(name))) dup.push(name); else { seen.add(nameKey(name)); ok.push({ name, rank }); }
   });
   if (ok.length) mutate(s => ok.forEach(({ name, rank }) => s.players.push({ id: TT.nextId(s, 'p'), name, rank })));
-  if (dup.length) toast(`Niet toegevoegd, naam bestaat al: ${dup.join(', ')}. Voeg bv. een initiaal of "sr/jr" toe.`, true);
+  if (dup.length) toast(L('Niet toegevoegd, naam bestaat al: {0}. Voeg bv. een initiaal of "sr/jr" toe.', dup.join(', ')), true);
   return ok.length;
 }
 document.addEventListener('submit', e => {
@@ -1370,20 +1668,21 @@ document.addEventListener('submit', e => {
   if (kind === 'add-player') { addPlayers([{ name: fd.get('name').trim(), rank: fd.get('rank') }]); setTimeout(() => $app.querySelector('form[data-form=add-player] input[name=name]')?.focus(), 0); }
   if (kind === 'club') {
     const n = addPlayers(fd.getAll('m').map(i => pickList()[+i]).filter(Boolean).map(m => ({ name: m.name, rank: m.rank })));
-    toast(n ? `${n} speler${n > 1 ? 's' : ''} toegevoegd` : 'Vink eerst spelers aan.', !n);
+    toast(n > 1 ? L('{0} spelers toegevoegd', n) : n ? L('{0} speler toegevoegd', n) : L('Vink eerst spelers aan.'), !n);
   }
   if (kind === 'bulk') {
     const list = String(fd.get('bulk')).split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
       const parts = l.split(/[;\t,]/).map(x => x.trim());
       let rank = '';
-      if (parts.length > 1 && TT.RANKS.includes(parts[parts.length - 1].toUpperCase())) rank = parts.pop().toUpperCase();
+      const last = parts.length > 1 ? parts[parts.length - 1].toUpperCase() : '';
+      if (TT.RANKS.includes(last) || last === 'NC') { rank = last === 'NC' ? 'NG' : last; parts.pop(); }
       return { name: parts.join(' ').trim(), rank };
     });
     addPlayers(list);
   }
   if (kind === 'late') {
     const name = cleanName(fd.get('name')); if (!name) return;
-    if (nameTaken(name)) { toast(`Er is al een speler met de naam ${name}. Voeg bv. een initiaal toe.`, true); return; }
+    if (nameTaken(name)) { toast(L('Er is al een speler met de naam {0}. Voeg bv. een initiaal toe.', name), true); return; }
     mutate(s => TT.addLatePlayer(s, name, fd.get('rank'), fd.get('poule')));
   }
   if (kind === 'score') {
@@ -1392,7 +1691,7 @@ document.addEventListener('submit', e => {
     const tgf = TT.targets(state, state.matches.find(x => x.id === id)), tgh = tgf.h;
     for (let i = 0; i < bo; i++) {
       const raw = fd.get('s' + i), p = TT.parseSet(raw, tgh);
-      if (p === undefined) { document.getElementById('scoreErr').textContent = `Set ${i + 1}: "${raw}" begrijp ik niet.`; return; }
+      if (p === undefined) { document.getElementById('scoreErr').textContent = L('Set {0}: "{1}" begrijp ik niet.', i + 1, raw); return; }
       if (p) sets.push(p);
     }
     const chk = TT.checkSets(sets.map(x => x.slice()), bo, tgh, tgf.lead);
@@ -1407,7 +1706,7 @@ document.addEventListener('click', e => {
     const free = [...$app.querySelectorAll('.club-list input:not(:disabled)')];
     free.forEach(c => { c.checked = false; });
     free.map(c => [Math.random(), c]).sort((x, y) => x[0] - y[0]).map(x => x[1]).slice(0, 25).forEach(c => { c.checked = true; });
-    toast(`${Math.min(25, free.length)} willekeurige leden aangevinkt. Klik op "Aangevinkte spelers toevoegen".`);
+    toast(L('{0} willekeurige leden aangevinkt. Klik op "Aangevinkte spelers toevoegen".', Math.min(25, free.length)));
     return;
   }
   if (a === 'club-all' || a === 'club-none') { $app.querySelectorAll('.club-list label:not([hidden]) input:not(:disabled)').forEach(c => { c.checked = a === 'club-all'; }); return; }
@@ -1415,7 +1714,7 @@ document.addEventListener('click', e => {
   if (el.tagName === 'INPUT') return;
   switch (a) {
     case 'tab': tab = el.dataset.tab; drawSel = null; render(); window.scrollTo(0, 0); break;
-    case 'undo': if (history.length) { state = JSON.parse(history.pop()); persist(); render(); toast('Ongedaan gemaakt'); } break;
+    case 'undo': if (history.length) { state = JSON.parse(history.pop()); persist(); render(); toast(L('Ongedaan gemaakt')); } break;
     case 'open-display': window.open(location.pathname + '#scherm', 'tt-scherm'); break;
     case 'del-player': mutate(s => { s.players = s.players.filter(p => p.id !== id); }); break;
     case 'draw': mutate(s => { s.poules = TT.drawPoules(s.players.filter(p => !p.withdrawn), s.settings.pouleSize, false, Math.random, s.settings.drawTie); s.stage = 'draw'; }); tab = 'poules'; render(); break;
@@ -1430,7 +1729,7 @@ document.addEventListener('click', e => {
           const ia = pa.players.indexOf(a1), ib = pb.players.indexOf(id); pa.players[ia] = id; pb.players[ib] = a1; }); }
       break;
     case 'start-poules': mutate(s => TT.startPoules(s)); tab = 'wedstrijden'; render(); break;
-    case 'withdraw': if (confirm(`${pname(id)} afmelden? Alle resterende poulewedstrijden worden forfait.`)) mutate(s => TT.withdraw(s, id)); break;
+    case 'withdraw': if (confirm(L('{0} afmelden? Alle resterende poulewedstrijden worden forfait.', pname(id)))) mutate(s => TT.withdraw(s, id)); break;
     case 'score': openScore(id); break;
     case 'quick-score': if (mutate(s => TT.setResult(s, id, { score: [+el.dataset.a, +el.dataset.b] }))) closeModal(); break;
     case 'wo': if (mutate(s => TT.setResult(s, id, { wo: +el.dataset.wo }))) closeModal(); break;
@@ -1438,17 +1737,17 @@ document.addEventListener('click', e => {
     case 'auto': mutate(s => TT.autoAssign(s)); break;
     case 'unassign': mutate(s => { const m = s.matches.find(x => x.id === id); m.table = null; m.started = null; m.ump = null; }); break;
     case 'start-ko': if (mutate(s => TT.startKnockout(s))) { tab = 'tabel'; render(); } break;
-    case 'reset-ko': if (confirm('Eindrondes wissen? De poule-uitslagen blijven bewaard.')) { mutate(s => TT.resetKnockout(s)); tab = 'poules'; render(); } break;
+    case 'reset-ko': if (confirm(L('Eindrondes wissen? De poule-uitslagen blijven bewaard.'))) { mutate(s => TT.resetKnockout(s)); tab = 'poules'; render(); } break;
     case 'print': window.print(); break;
     case 'slips-playing': printSlips(state.matches.filter(m => m.table && !TT.isDone(m)).sort((a, b) => a.table - b.table)); break;
     case 'slips-poules': printSlips(state.matches.filter(m => m.kind === 'poule' && !TT.isDone(m)), true); break;
     case 'export': exportBackup(); break;
     case 'new-tournament': {
       const has = state.players.length > 0;
-      if (!confirm('Bent u zeker? Het huidige tornooi wordt afgesloten en alle spelers en uitslagen worden gewist.' + (has ? '\n\nEr wordt eerst automatisch een back-up gedownload.' : ''))) break;
+      if (!confirm(L('Bent u zeker? Het huidige tornooi wordt afgesloten en alle spelers en uitslagen worden gewist.') + (has ? '\n\n' + L('Er wordt eerst automatisch een back-up gedownload.') : ''))) break;
       if (has) exportBackup();
       mutate(s => { const keep = s.settings; Object.keys(s).forEach(k => delete s[k]); Object.assign(s, TT.newState(), { settings: keep }); });
-      tab = 'spelers'; drawSel = null; render(); toast('Nieuw tornooi gestart');
+      tab = 'spelers'; drawSel = null; render(); toast(L('Nieuw tornooi gestart'));
       break;
     }
   }
@@ -1459,6 +1758,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const el = e.target;
+  if (el.matches('[data-lang]')) { setLang(el.value); return; }
   if (el.matches('[data-vttlpick]')) {
     if (el.value === '__load') vttlLoadClubs();
     else if (el.value) vttlLoadMembers(el.value);
@@ -1480,16 +1780,16 @@ document.addEventListener('change', e => {
   } else if (el.dataset.pedit) {
     if (el.dataset.pedit === 'name') {
       const name = cleanName(el.value);
-      if (!name) { toast('Een naam mag niet leeg zijn.', true); render(); return; }
-      if (nameTaken(name, el.dataset.id)) { toast(`Er is al een speler met de naam ${name}.`, true); render(); return; }
+      if (!name) { toast(L('Een naam mag niet leeg zijn.'), true); render(); return; }
+      if (nameTaken(name, el.dataset.id)) { toast(L('Er is al een speler met de naam {0}.', name), true); render(); return; }
       mutate(s => { s.players.find(x => x.id === el.dataset.id).name = name; });
     } else mutate(s => { s.players.find(x => x.id === el.dataset.id).rank = el.value; });
   } else if (el.dataset.assign && el.value) {
     mutate(s => TT.assign(s, el.dataset.assign, +el.value));
   } else if (el.dataset.action === 'import' && el.files[0]) {
     el.files[0].text().then(t => {
-      try { const d = JSON.parse(t); if (!d.settings || !Array.isArray(d.players)) throw 0; mutate(s => { Object.keys(s).forEach(k => delete s[k]); Object.assign(s, d); TT.migrate(s); }); toast('Back-up geladen'); }
-      catch (_) { toast('Dit is geen geldig back-upbestand.', true); }
+      try { const d = JSON.parse(t); if (!d.settings || !Array.isArray(d.players)) throw 0; mutate(s => { Object.keys(s).forEach(k => delete s[k]); Object.assign(s, d); TT.migrate(s); }); toast(L('Back-up geladen')); }
+      catch (_) { toast(L('Dit is geen geldig back-upbestand.'), true); }
     });
   }
 });
@@ -1500,11 +1800,12 @@ document.addEventListener('keydown', e => {
     if (hit.length === 1) vttlLoadMembers(hit[0].code);
   }
 });
-window.addEventListener('storage', e => { if (e.key === KEY) { load(); if (!$modal.innerHTML) render(); } });
+window.addEventListener('storage', e => { if (e.key === KEY || e.key === LKEY) { if (e.key === LKEY) LANG = loadLang(); load(); if (!$modal.innerHTML) render(); } });
 window.addEventListener('hashchange', render);
 window.addEventListener('beforeunload', persist);
 setInterval(() => { if (isDisplay()) { load(); render(); } }, 5000);
 
+LANG = loadLang();
 load();
 vttlWarm();
 if (state.stage !== 'setup') tab = state.stage === 'draw' ? 'poules' : 'wedstrijden';
