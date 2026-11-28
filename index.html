@@ -23,7 +23,6 @@ nav button:hover{color:#fff}
 /* vermelding van de maker (MKict), ook op afdrukken */
 .credit{max-width:1400px;margin:0 auto;padding:4px 16px 18px;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 14px;font-size:13px;color:var(--muted)}
 .credit .sep{opacity:.5}
-.credit a.trainer{display:inline}
 .credit a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .credit a:hover{color:var(--ink)}
 .credit img{height:30px;width:auto;display:block}
@@ -1080,9 +1079,9 @@ function applyLang() {
 const langSelect = () => `<label>${L('Taal')} <select data-lang>${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
 // Maker van de app: MKict (https://mkict.be). Logo mkict-logo.png (op het donkere tv-scherm mkict-logo-wit.png); verdwijnt als het niet laadt.
 const MAKER_URL = 'https://mkict.be';
-// Trainer van de club (lessen); staat in de voettekst, niet op afdrukken.
+// Trainer van de club (lessen), met logo capatt-logo.png; staat in de voettekst, niet op afdrukken.
 const TRAINER_URL = 'https://www.capatt.be/';
-const footerHtml = () => `<footer class="credit"><a href="${MAKER_URL}" target="_blank" rel="noopener"><img src="${isDisplay() ? 'mkict-logo-wit.png' : 'mkict-logo.png'}" alt="MKict" onerror="this.remove()"><span>${L('Gemaakt door {0}', '<b>MKict</b>')}<span class="url"> · mkict.be</span></span></a><span class="sep noprint">·</span><a class="noprint trainer" href="${TRAINER_URL}" target="_blank" rel="noopener">${L('Les nodig? Bezoek {0}', '<b>capatt.be</b>')}</a></footer>`;
+const footerHtml = () => `<footer class="credit"><a href="${MAKER_URL}" target="_blank" rel="noopener"><img src="${isDisplay() ? 'mkict-logo-wit.png' : 'mkict-logo.png'}" alt="MKict" onerror="this.remove()"><span>${L('Gemaakt door {0}', '<b>MKict</b>')}<span class="url"> · mkict.be</span></span></a><span class="sep noprint">·</span><a class="noprint trainer" href="${TRAINER_URL}" target="_blank" rel="noopener"><img src="capatt-logo.png" alt="capatt" onerror="this.remove()"><span>${L('Les nodig? Bezoek {0}', '<b>capatt.be</b>')}</span></a></footer>`;
 const printFooter = () => `<div class="slip-credit"><img src="mkict-logo.png" alt="" onerror="this.remove()">${L('Gemaakt door {0}', 'MKict')} · mkict.be</div>`;
 let tab = 'spelers', drawSel = null;
 const isDisplay = () => location.hash === '#scherm';
