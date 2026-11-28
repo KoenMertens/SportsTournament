@@ -11,6 +11,12 @@ Eén bestand, `index.html`, dat volledig in de browser draait. Geen server, geen
 5. **Eindrondes**: maak de hoofdtabel (top 2 per poule) en de troosttabel aan. Dat kan ook al terwijl er nog poules bezig zijn: de tabel toont dan "1ste poule A" en vult zich vanzelf in zodra een poule klaar is. Iedereen speelt door tot zijn eindplaats vaststaat. Na het aanmaken kun je geen laatkomer meer toevoegen.
 6. **🖥 Scherm**: opent een tweede venster voor tv of beamer dat automatisch meevolgt.
 
+## Talen
+
+De app bestaat in het Nederlands (standaard), Frans en Engels. Kies de taal rechtsboven (NL / FR / EN) of in *Instellingen & back-up*; de keuze wordt onthouden in de browser. Ook de wedstrijdbriefjes, het pouleblad en het tv-scherm volgen de taal. Een link kan meteen een taal openen: `index.html?lang=fr` of `?lang=en`.
+
+Alle teksten staan in het Nederlands in de code (`L('…')`); de Franse en Engelse vertaling staat in `I18N_TABLE` bovenaan het script. De tests controleren dat elke zin een vertaling heeft.
+
 ## Formaat
 
 - Poules van 4, of van 3 waar het niet uitkomt (de poules van 3 zijn A, B, C).
@@ -44,3 +50,7 @@ node tests/logic.test.js
 ```
 
 Speelt honderden volledige tornooien na (3 tot 40 spelers) en controleert poules, standen, tabellen en eindklassement.
+
+## Maker
+
+Gemaakt door [MKict](https://mkict.be). De vermelding staat onderaan elke pagina en op de afdrukken. Zet het logo als `mkict-logo.png` naast `index.html`; zonder dat bestand verschijnt alleen de tekst.
