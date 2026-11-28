@@ -41,7 +41,7 @@ Let op: werk altijd op dezelfde laptop en in dezelfde browser, en gebruik geen p
 
 ## Gratis hosten
 
-GitHub → Settings → Pages → *Deploy from a branch* → `main` / root. De app staat dan op `https://koenmertens.github.io/SportsTournament/`. De gegevens blijven ook dan lokaal in de browser.
+GitHub → Settings → Pages → *Deploy from a branch* → `main` / root. De app staat dan op `https://koenmertens.github.io/clubkampioenschap-tafeltennis/`. De gegevens blijven ook dan lokaal in de browser.
 
 ## Tests
 
