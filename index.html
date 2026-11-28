@@ -71,6 +71,7 @@ tr.q td{background:var(--hi)}
 .champ{font-size:20px;font-weight:700}
 /* club (TTC Sterke Stut): afbeeldingen komen van sterkestut.be en verdwijnen als ze niet laden (offline) */
 .logo{height:40px;border-radius:5px;display:block;border:1px solid rgba(255,255,255,.35)}
+.maker-logo{margin-left:-4px}.maker-logo img{height:42px;width:auto;display:block}   /* MKict (witte versie) naast het clublogo */
 /* achtergrond: links en rechts een tafeltennisfoto (naast de pagina), daaronder clubblauw als die niet laden */
 .hero{position:relative;border-radius:10px;overflow:hidden;margin-bottom:14px;text-align:center;background:linear-gradient(135deg,#182870,#2a4bb0 55%,#182870)}
 .hero::before,.hero::after{content:"";position:absolute;top:0;bottom:0;width:calc(50% - 330px);background-size:cover}   /* de stroken naast de clubfoto */
@@ -163,6 +164,7 @@ body.display .pill{background:#26324a;color:#c3cde0}
 <body>
 <header>
   <a href="https://www.sterkestut.be/" target="_blank" rel="noopener" title="TTC Sterke Stut"><img class="logo" src="logo.png" alt="TTC Sterke Stut" onerror="this.parentNode.remove()"></a>
+  <a class="maker-logo" href="https://mkict.be" target="_blank" rel="noopener" title="Gemaakt door MKict" data-i18n-title="Gemaakt door MKict"><img src="mkict-logo-wit.png" alt="MKict" onerror="this.parentNode.remove()"></a>
   <h1 id="title">Clubkampioenschap</h1>
   <nav id="nav"></nav>
   <div class="hdr-right">
@@ -209,6 +211,7 @@ const I18N_TABLE = {
   "{0} poule {1}": ["{0} poule {1}", "{0} group {1}"],
   "Taal": ["Langue", "Language"],
   "Les nodig? Bezoek {0}": ["Besoin de cours ? Visitez {0}", "Looking for lessons? Visit {0}"],
+  "Gemaakt door MKict": ["Réalisé par MKict", "Made by MKict"],
   "Gemaakt door {0}": ["Réalisé par {0}", "Made by {0}"],
   "Spelers": ["Joueurs", "Players"],
   "Poules": ["Poules", "Groups"],
